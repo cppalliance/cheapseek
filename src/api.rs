@@ -1,13 +1,16 @@
 //! The routes of the API and the handlers behind them.
 
+use std::sync::Arc;
+
 use axum::body::Bytes;
 use axum::extract::rejection::BytesRejection;
-use axum::extract::{DefaultBodyLimit, Path};
+use axum::extract::{DefaultBodyLimit, Path, State};
 use axum::http::{Method, StatusCode, Uri};
 use axum::response::{IntoResponse, Response};
 use axum::routing::{get, post};
 use axum::{Json, Router};
 
+use crate::brain::Brain;
 use crate::wire::{ChatRequest, ErrorBody, Model, ModelList, ModelObject, RequestError};
 use crate::{reply, sse};
 
@@ -17,7 +20,8 @@ use crate::{reply, sse};
 const MAX_BODY_BYTES: usize = 64 * 1024 * 1024;
 
 /// Builds the router: the model routes, the chat route, and an OpenAI error
-/// envelope for every request that reaches no handler.
+/// envelope for every request that reaches no handler. Each router has a
+/// brain of its own, so two servers in one process share no bots.
 pub(crate) fn router() -> Router {
     Router::new()
         .route("/v1/models", get(list_models))
@@ -26,6 +30,7 @@ pub(crate) fn router() -> Router {
         .fallback(unknown_path)
         .method_not_allowed_fallback(wrong_method)
         .layer(DefaultBodyLimit::max(MAX_BODY_BYTES))
+        .with_state(Arc::new(Brain::default()))
 }
 
 /// A failed request: the HTTP status and the error envelope that goes with
@@ -132,12 +137,15 @@ async fn get_model(Path(id): Path<String>) -> Result<Json<ModelObject>, ApiError
 /// Answers a chat request, as one JSON object or as a stream. The body is
 /// read as plain bytes, so that a body the server cannot parse gets the
 /// error envelope like every other failure.
-async fn chat_completions(body: Result<Bytes, BytesRejection>) -> Result<Response, ApiError> {
+async fn chat_completions(
+    State(brain): State<Arc<Brain>>,
+    body: Result<Bytes, BytesRejection>,
+) -> Result<Response, ApiError> {
     let body = body.map_err(|rejection| ApiError::unreadable_body(&rejection))?;
     let request = ChatRequest::parse(&body)?;
     let model =
         Model::from_id(&request.model).ok_or_else(|| ApiError::model_not_found(&request.model))?;
-    let reply = reply::reply(&request, model, &body).await?;
+    let reply = reply::reply(&request, model, &body, &brain).await?;
     if request.streams() {
         let events = sse::events(&reply, request.includes_usage())
             .map_err(|error| ApiError::internal(&error))?;

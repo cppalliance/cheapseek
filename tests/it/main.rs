@@ -8,6 +8,7 @@
 mod chat;
 mod chat_errors;
 mod client;
+mod conversations;
 mod echo;
 mod errors;
 mod json;

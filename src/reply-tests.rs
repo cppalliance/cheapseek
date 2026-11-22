@@ -24,7 +24,9 @@ fn chat(messages: &str, tools: bool, extra: &str) -> ChatRequest {
 
 /// The output the chat model gives `request`.
 async fn answer_of(request: &ChatRequest) -> Output {
-    answer(request, b"body").await.expect("an answer")
+    answer(request, b"body", &Arc::default())
+        .await
+        .expect("an answer")
 }
 
 /// The name and the arguments of each call of `output`.
@@ -443,7 +445,9 @@ async fn a_directive_calls_a_tool_the_request_does_not_offer_with_empty_argument
 #[tokio::test]
 async fn a_directive_that_cannot_be_read_is_refused() {
     let request = chat(r#"[{"role":"user","content":"[[call ]]"}]"#, true, "");
-    let error = answer(&request, b"body").await.expect_err("a refusal");
+    let error = answer(&request, b"body", &Arc::default())
+        .await
+        .expect_err("a refusal");
     assert_eq!(
         error.message,
         "Invalid directive in the last user message: a `[[call` block names no tool."
@@ -456,7 +460,7 @@ async fn the_echo_reply_holds_as_many_tokens_as_its_prompt() {
     let body =
         r#"{"model":"cheapseek-echo","messages":[{"role":"user","content":"Hello, world!"}]}"#;
     let request = request(body);
-    let reply = reply(&request, Model::Echo, body.as_bytes())
+    let reply = reply(&request, Model::Echo, body.as_bytes(), &Arc::default())
         .await
         .expect("a reply");
     assert_eq!(reply.output, text_output("user: Hello, world!"));
@@ -474,7 +478,7 @@ async fn a_tool_call_counts_the_tokens_of_its_name_and_its_arguments() {
     let body =
         r#"{"model":"cheapseek","messages":[{"role":"user","content":"[[call read {\"a\":1}]]"}]}"#;
     let request = request(body);
-    let reply = reply(&request, Model::Chat, body.as_bytes())
+    let reply = reply(&request, Model::Chat, body.as_bytes(), &Arc::default())
         .await
         .expect("a reply");
     assert_eq!(reply.finish, FinishReason::ToolCalls);

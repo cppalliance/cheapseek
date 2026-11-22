@@ -50,7 +50,10 @@ pub fn router() -> Router {
 /// turn takes milliseconds. A caller runs this once before it tells anyone
 /// the server is up, so the first request is not the slow one.
 pub async fn warm_up() {
-    brain::reply(0, vec!["Hello.".to_owned()]).await;
+    // The rules are compiled once for the whole process, so a brain that
+    // lives for this one turn warms every later one.
+    let brain = std::sync::Arc::new(brain::Brain::default());
+    brain.reply(0, vec!["Hello.".to_owned()]).await;
 }
 
 /// Serves the API on `listener` until `shutdown` completes.

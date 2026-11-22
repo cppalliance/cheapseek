@@ -19,12 +19,15 @@
 
 use serde_json::{Map, Value, json};
 
+use std::sync::Arc;
+
+use crate::brain::Brain;
 use crate::directive::{self, Script, Step};
 use crate::wire::{
     AssistantMessage, ChatCompletion, ChatRequest, FinishReason, FunctionTool, Message, Model,
     RequestError, ResponseFormat, Role, ToolCall, ToolChoice, ToolMode, Usage,
 };
-use crate::{brain, schema, tokens};
+use crate::{schema, tokens};
 
 /// What the server answers to one chat request, before it is written out as
 /// one JSON object or as a stream.
@@ -88,12 +91,13 @@ pub(crate) async fn reply(
     request: &ChatRequest,
     model: Model,
     body: &[u8],
+    brain: &Arc<Brain>,
 ) -> Result<Reply, RequestError> {
     check_tool_messages(&request.messages)?;
     let prompt = render(request);
     let output = match model {
         Model::Echo => Output::Text(prompt.clone()),
-        Model::Chat => answer(request, body).await?,
+        Model::Chat => answer(request, body, brain).await?,
     };
     let (output, finish) = shorten(output, &request.stops(), request.token_limit());
     Ok(Reply {
@@ -107,7 +111,11 @@ pub(crate) async fn reply(
 
 /// What the chat model answers: the first rule of the module's list that
 /// fits the request.
-async fn answer(request: &ChatRequest, body: &[u8]) -> Result<Output, RequestError> {
+async fn answer(
+    request: &ChatRequest,
+    body: &[u8],
+    brain: &Arc<Brain>,
+) -> Result<Output, RequestError> {
     let messages = &request.messages;
     let last_user = messages
         .iter()
@@ -155,7 +163,8 @@ async fn answer(request: &ChatRequest, body: &[u8]) -> Result<Output, RequestErr
     if let Some(name) = asked_tool(request, &script.rest) {
         return Ok(Output::Calls(vec![call(0, name, None)]));
     }
-    Ok(Output::Text(text(request, last_user, script.rest).await))
+    let text = text(request, last_user, script.rest, brain).await;
+    Ok(Output::Text(text))
 }
 
 /// The error for a directive that opens and cannot be read.
@@ -284,7 +293,12 @@ fn words(text: &str) -> Vec<String> {
 /// JSON in the form the request asks for, or the bot's reply. `last_user`
 /// is the index of the last user message, and `rest` is its text without
 /// directives.
-async fn text(request: &ChatRequest, last_user: Option<usize>, rest: String) -> String {
+async fn text(
+    request: &ChatRequest,
+    last_user: Option<usize>,
+    rest: String,
+    brain: &Arc<Brain>,
+) -> String {
     let format = request.response_format.as_ref();
     if let Some(ResponseFormat::JsonSchema { json_schema }) = format {
         // A format that names no schema allows any JSON, and an empty
@@ -297,7 +311,7 @@ async fn text(request: &ChatRequest, last_user: Option<usize>, rest: String) -> 
         return value.to_string();
     }
     let turns = bot_turns(&request.messages, last_user, rest);
-    let reply = brain::reply(request.seed(), turns).await;
+    let reply = Arc::clone(brain).reply(request.seed(), turns).await;
     match format {
         Some(ResponseFormat::JsonObject) => json!({ "reply": reply }).to_string(),
         _ => reply,

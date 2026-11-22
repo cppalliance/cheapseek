@@ -43,6 +43,8 @@ tokio = { version = "1", features = ["macros", "net", "rt-multi-thread", "signal
 # the server's replies have the OpenAI shape. default-features off: the
 # default is a TLS stack, and the tests talk plain HTTP to a loopback port.
 async-openai = { version = "0.43", default-features = false, features = ["chat-completion"] }
+# The tests wait for several requests at once, which needs `join_all`.
+futures-util = { version = "0.3", default-features = false, features = ["alloc"] }
 # A JSON Schema validator that this project does not write: it judges
 # whether a value the server makes from a schema fits that schema.
 # default-features off: the default fetches remote schemas over HTTP.

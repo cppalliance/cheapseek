@@ -182,6 +182,36 @@ pub(crate) struct ChatRequest {
     /// What the caller wants added to the stream.
     #[serde(default)]
     stream_options: Option<StreamOptions>,
+    /// The form the caller wants the reply text in.
+    #[serde(default)]
+    pub(crate) response_format: Option<ResponseFormat>,
+}
+
+/// The `response_format` field: the form the reply text takes.
+#[derive(Debug, Deserialize)]
+#[serde(tag = "type", rename_all = "snake_case")]
+pub(crate) enum ResponseFormat {
+    /// Plain text, the same as no `response_format`.
+    Text,
+    /// Any JSON object.
+    JsonObject,
+    /// JSON that fits a schema.
+    JsonSchema {
+        /// The schema and its name.
+        json_schema: JsonSchemaFormat,
+    },
+}
+
+/// The `json_schema` field of a `response_format`.
+#[derive(Debug, Deserialize)]
+pub(crate) struct JsonSchemaFormat {
+    /// The name of the format. OpenAI requires it, and the server reads it
+    /// only to require it too.
+    #[serde(rename = "name")]
+    _name: String,
+    /// The schema the reply must fit. A format without one allows any JSON.
+    #[serde(default)]
+    pub(crate) schema: Option<Value>,
 }
 
 /// The `stream_options` field.

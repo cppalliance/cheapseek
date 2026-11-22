@@ -5,9 +5,12 @@
 //! model answers with the bot. The stop sequences and the token limit then
 //! shorten the text, and the token rule counts what is left.
 
-use crate::brain;
-use crate::tokens;
-use crate::wire::{ChatCompletion, ChatRequest, FinishReason, Message, Model, Role, Usage};
+use serde_json::json;
+
+use crate::wire::{
+    ChatCompletion, ChatRequest, FinishReason, Message, Model, ResponseFormat, Role, Usage,
+};
+use crate::{brain, schema, tokens};
 
 /// What the server answers to one chat request, before it is written out as
 /// one JSON object or as a stream.
@@ -38,7 +41,7 @@ pub(crate) async fn reply(request: &ChatRequest, model: Model, body: &[u8]) -> R
     let prompt = render(request);
     let text = match model {
         Model::Echo => prompt.clone(),
-        Model::Chat => brain::reply(request.seed(), user_turns(request)).await,
+        Model::Chat => answer(request).await,
     };
     let (text, finish) = shorten(text, &request.stops(), request.token_limit());
     Reply {
@@ -48,6 +51,34 @@ pub(crate) async fn reply(request: &ChatRequest, model: Model, body: &[u8]) -> R
         text,
         finish,
     }
+}
+
+/// The text the chat model answers with. The first rule that fits the
+/// request wins:
+///
+/// 1. A `response_format` of `json_schema` gets JSON made from the schema.
+/// 2. A `response_format` of `json_object` gets the bot's reply inside a
+///    JSON object.
+/// 3. Any other request gets the bot's reply.
+async fn answer(request: &ChatRequest) -> String {
+    match &request.response_format {
+        Some(ResponseFormat::JsonSchema { json_schema }) => {
+            // A format that names no schema allows any JSON, and an empty
+            // object is the plainest.
+            let value = json_schema.schema.as_ref().map_or_else(
+                || json!({}),
+                |schema| schema::generate(schema, request.seed().unsigned_abs()),
+            );
+            value.to_string()
+        }
+        Some(ResponseFormat::JsonObject) => json!({ "reply": chat(request).await }).to_string(),
+        Some(ResponseFormat::Text) | None => chat(request).await,
+    }
+}
+
+/// The bot's reply to the user turns of the request.
+async fn chat(request: &ChatRequest) -> String {
+    brain::reply(request.seed(), user_turns(request)).await
 }
 
 /// The prompt as the echo model returns it: one entry per message, the role

@@ -10,6 +10,7 @@ mod chat_errors;
 mod client;
 mod echo;
 mod errors;
+mod json;
 mod models;
 mod process;
 mod stream;

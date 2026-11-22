@@ -6,19 +6,21 @@
 //! request always gets the same bytes, and one server can answer any number
 //! of tests at once.
 //!
-//! The `cheapseek` executable binds a loopback port, prints the base URL,
-//! and calls [`serve`]. A test in another package can skip the process and
-//! call [`serve`] on a listener of its own.
+//! The `cheapseek` executable binds a loopback port, warms the chat bot,
+//! prints the base URL, and calls [`serve`]. A test in another package can
+//! skip the process and do the same on a listener of its own.
 //!
 //! ```no_run
 //! # async fn example() -> std::io::Result<()> {
 //! let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await?;
+//! cheapseek::warm_up().await;
 //! println!("http://{}/v1", listener.local_addr()?);
 //! cheapseek::serve(listener, std::future::pending()).await
 //! # }
 //! ```
 
 mod api;
+mod brain;
 mod wire;
 
 use std::future::Future;
@@ -34,6 +36,16 @@ use tokio::net::TcpListener;
 /// stack of its own can mount the router there instead.
 pub fn router() -> Router {
     api::router()
+}
+
+/// Runs one throwaway turn through the chat bot.
+///
+/// The bot compiles its rules the first time each one runs, and the first
+/// turn of a process pays for most of them: it takes seconds where a later
+/// turn takes milliseconds. A caller runs this once before it tells anyone
+/// the server is up, so the first request is not the slow one.
+pub async fn warm_up() {
+    brain::reply(0, vec!["Hello.".to_owned()]).await;
 }
 
 /// Serves the API on `listener` until `shutdown` completes.

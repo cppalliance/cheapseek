@@ -1,5 +1,5 @@
-//! The `cheapseek` executable: it binds a loopback port, prints the base URL
-//! of the API on one line, and serves until Ctrl-C.
+//! The `cheapseek` executable: it binds a loopback port, warms the chat bot,
+//! prints the base URL of the API on one line, and serves until Ctrl-C.
 
 use std::io::{self, Write as _};
 use std::net::{Ipv4Addr, SocketAddr};
@@ -7,6 +7,13 @@ use std::process::ExitCode;
 
 use clap::Parser;
 use tokio::net::TcpListener;
+
+/// The stack size of every runtime thread, the bot's included.
+///
+/// RustBot's own command line runs each turn on the main thread, which has
+/// an 8 MiB stack on Linux and macOS. The runtime's threads default to a
+/// quarter of that, so they are given the size the bot is known to run in.
+const THREAD_STACK_BYTES: usize = 8 * 1024 * 1024;
 
 /// A test server that speaks the OpenAI chat-completions API and answers by
 /// rule, with zero inference.
@@ -29,14 +36,19 @@ fn main() -> ExitCode {
     }
 }
 
-/// Binds the port, prints the base URL, and serves until Ctrl-C.
+/// Binds the port, warms the bot, prints the base URL, and serves until
+/// Ctrl-C.
 fn run(args: &Args) -> io::Result<()> {
     let runtime = tokio::runtime::Builder::new_multi_thread()
         .enable_all()
+        .thread_stack_size(THREAD_STACK_BYTES)
         .build()?;
     runtime.block_on(async {
+        // The port is bound first, so a port that is taken fails at once
+        // and not after the seconds the bot takes to warm.
         let address = SocketAddr::from((Ipv4Addr::LOCALHOST, args.port));
         let listener = TcpListener::bind(address).await?;
+        cheapseek::warm_up().await;
         print_base_url(listener.local_addr()?)?;
         cheapseek::serve(listener, ctrl_c()).await
     })

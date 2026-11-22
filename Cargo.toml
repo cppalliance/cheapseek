@@ -1,6 +1,8 @@
 [package]
 name = "cheapseek"
-version = "0.1.0"
+# A release is the tag `v` plus this version, and `action/start.sh` reads it
+# here to find the release it downloads.
+version = "1.0.0"
 edition = "2024"
 # The toolchain that `rust-toolchain.toml` pins. Every build and test runs on
 # it, so this is the one version the package is known to build with.

@@ -16,9 +16,16 @@ CheapSeek is a test server that speaks the OpenAI chat-completions API and answe
 
 ## Run
 
+Get the executable in one of three ways:
+
+- **Download it.** Each [release](https://github.com/cppalliance/cheapseek/releases) holds one file for Linux on x64, one for macOS on arm64 and one for Windows on x64, with their SHA-256 sums. The Linux file needs glibc 2.35 or newer, which Ubuntu 22.04 has. On Linux and macOS, make the file executable with `chmod +x`.
+- **Install it with cargo.** `cargo install --git https://github.com/cppalliance/cheapseek --locked` builds the executable in about three minutes and puts `cheapseek` among cargo's own executables. It needs Rust 1.99 or newer.
+- **Build it in a checkout.** `cargo build --release` leaves it at `target/release/cheapseek`.
+
+Then start it:
+
 ```sh
-cargo build --release
-./target/release/cheapseek
+cheapseek
 ```
 
 The server binds a free port on `127.0.0.1`, warms the bot, prints one line, and serves until Ctrl-C:
@@ -30,6 +37,27 @@ http://127.0.0.1:54321/v1
 That line is the base URL an OpenAI client takes. `--port N` picks the port. The server answers any caller on the local machine, and an `Authorization` header is accepted and ignored.
 
 Starting takes about two seconds, because the bot compiles most of its rules on its first turn. The process uses 300 to 400 MiB of memory.
+
+## Use it in GitHub Actions
+
+One step starts a server that runs until the job ends:
+
+```yaml
+- uses: cppalliance/cheapseek@v1
+  id: cheapseek
+- run: cargo test
+  env:
+    OPENAI_BASE_URL: ${{ steps.cheapseek.outputs.base-url }}
+    OPENAI_API_KEY: unused
+```
+
+The step downloads the executable of its release, compares it with the SHA-256 sum of that release, starts it, and waits for the base URL.
+
+- **`base-url`** is the output: the base URL, such as `http://127.0.0.1:54321/v1`. Later steps of the job also find it in the environment variable `CHEAPSEEK_BASE_URL`.
+- **`port`** is an input: the port to listen on. The default, `0`, takes a free port.
+- **`executable`** is an input: the path of a CheapSeek executable to start in place of the download, such as one the job built.
+- **Runners.** A release holds executables for Linux on x64, macOS on arm64 and Windows on x64, the systems of GitHub's `ubuntu-latest`, `macos-latest` and `windows-latest`. On another runner, build CheapSeek in the job and pass its path as `executable`.
+- **Versions.** `@v1` follows the newest 1.x release, and a release can change a reply. `@v1.0.0` or a commit hash keeps the replies fixed.
 
 ## Point a client at it
 
@@ -259,7 +287,7 @@ Two things outside the request can still change a chat reply:
 
 Tests that ask about other things get the same bytes everywhere. Tool calls, tool results, echo replies and generated JSON depend on the request alone.
 
-A reply can change between versions of CheapSeek, because the rules and the bot can change. Pin a commit where the exact words matter.
+A reply can change between versions of CheapSeek, because the rules and the bot can change. Pin a release or a commit where the exact words matter.
 
 ## What to expect of it
 
@@ -299,11 +327,13 @@ cargo deny check
 
 The tests talk to a real server over HTTP. Two crates this project does not write act as judges: `async-openai`, a typed OpenAI client, reads every kind of reply, and `jsonschema` validates every value made from a schema.
 
+CI runs these checks on every push, with the tests on Linux, macOS and Windows. On each of the three it also starts a server through the action and compares its replies with recorded ones, byte for byte. The release workflow holds each executable to the same recorded replies before it publishes, and then starts the published files through the action.
+
 ## Design
 
 - [design/state-of-practice.md](design/state-of-practice.md) reports what other fake LLMs do and what CheapSeek adopts.
 - The `research` folder holds the evidence behind the report.
-- The `plan` folder holds the build plan and what the build found.
+- The `plan` folder holds the build plans and what each build found.
 
 ## License and notices
 

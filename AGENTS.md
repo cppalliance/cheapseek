@@ -1,6 +1,6 @@
 # CheapSeek
 
-CheapSeek is a test server that speaks the OpenAI chat-completions API and answers by rule, with zero inference. Tests of gateways and agent harnesses point at it in place of a real model. This repository holds one Rust package: a library with the server, and a thin executable around it. `README.md` is the user's guide, and it describes every behavior a test can rely on.
+CheapSeek is a test server that speaks the OpenAI chat-completions API and answers by rule, with zero inference. Tests of gateways and agent harnesses point at it in place of a real model. This repository holds one Rust package, a library with the server and a thin executable around it, and a GitHub Action that starts the executable in a job. `README.md` is the user's guide, and it describes every behavior a test can rely on.
 
 ## Standing rules
 
@@ -22,6 +22,9 @@ CheapSeek is a test server that speaks the OpenAI chat-completions API and answe
 - `src/wire.rs` holds the JSON shapes of requests and replies, and the checks of a request body.
 - `src/brain.rs` wraps RustBot: the one-line cut of a turn, the replay, the kept bots, and the guard against a panic.
 - `src/api.rs` holds the routes and turns each failure into the error envelope.
+- `action.yml` and `action/start.sh` are the GitHub Action. The script picks the executable for the runner, downloads it from the release, compares its SHA-256 sum, starts it, and gives the base URL to the job.
+- `action/check.sh` compares the replies of a running server with the recorded replies in `action/check/`.
+- `.github/workflows/release.yml` builds, checks and publishes the executables of a release, and moves the major tag.
 
 ## The bot
 
@@ -48,12 +51,24 @@ CheapSeek is a test server that speaks the OpenAI chat-completions API and answe
 - A test name is a sentence that states the behavior.
 - Two crates that this project does not write are the judges. `async-openai` reads every kind of reply the server makes, and `jsonschema` validates every value made from a schema. A new kind of reply gets a test through `async-openai`.
 - A test waits on the server's answer and never sleeps.
+- `action/check/` holds two requests and the whole reply to each, byte for byte. CI sends them to the debug build on three systems, and the release workflow sends them to each release build. A change to the bytes of a reply changes the recorded file in the same commit, after reading its diff.
 
 ## Checks
 
 - From the repository root: `cargo fmt --check`, `cargo clippy --all-targets --locked`, `cargo test --locked`, `cargo doc --no-deps --locked` with `RUSTDOCFLAGS` set to `-D warnings`, and `cargo deny check`.
 - CI runs all of these on every pull request and on `master`, in `.github/workflows/ci.yml`. The tests run on Ubuntu, Windows and macOS. A job added there also goes into the `needs` list of `ci-green`, the one check to require.
-- Never push a tag. Push `master` when the owner has said to push.
+- CI also runs `shellcheck` on the scripts in `action/`, and on each of the three systems it starts a server through the action and runs `action/check.sh`.
+- Push `master` when the owner has said to push. The next section holds the rules for tags.
+
+## Releases
+
+- **The version lives in `Cargo.toml` alone.** `action/start.sh` reads it there to find the release it downloads, so the action and the executable always come from one commit.
+- **A release is the tag `vX.Y.Z` on a commit of `master` with green CI,** pushed when the owner has said to release. The tag names the version in `Cargo.toml`, and `release.yml` fails a tag that names another. The commit that sets the version also updates `Cargo.lock`.
+- **A version tag is never moved and never used again.** A release that went wrong gets a fix on `master` and the next version.
+- **`release.yml` alone moves the major tag `v1`,** after the published files have worked through the action on three systems. Never push `v1` by hand.
+- **A manual run of the Release workflow builds and checks without publishing.** Run it before a tag when the workflow or the action changed.
+- **A new major version** changes the reference `cppalliance/cheapseek@v1` in the `proof` job of `release.yml` and in `README.md`.
+- **A new system** is one row in the `build` matrix of `release.yml`, one name in its `publish` job, one line in `action/start.sh`, and one sentence in `README.md`.
 
 ## Plans
 

@@ -10,19 +10,19 @@ todos:
     status: completed
   - id: plan-copy
     content: "Commit 0: copy the approved plan verbatim to cheapseek/plan/YYYY-MM-DD-N-release-action.plan.md and commit it on master"
-    status: in_progress
+    status: completed
   - id: action-ci
     content: "Commit 1: action.yml, action/start.sh, action/check.sh with recorded request and reply files, ci.yml changes (action steps in the test job, shellcheck, checkout v7); test locally in Git Bash, verify, commit, push 1, watch CI to green on three systems"
-    status: pending
+    status: completed
   - id: release-docs
     content: "Commit 2: .github/workflows/release.yml, version 1.0.0 in Cargo.toml and Cargo.lock, the README section and install lines, the Releases rules in AGENTS.md; verify, commit, push 2, watch CI to green, run the Release workflow by hand and watch its build jobs to green"
-    status: pending
+    status: completed
   - id: release-v1
     content: "Push the tag v1.0.0 on the commit of push 2 and watch the Release run to its end: release published with three executables and SHA256SUMS, v1 moved, proof green on three systems"
-    status: pending
+    status: completed
   - id: record
     content: "Commit 3: add What the build found and the todo statuses to the plan copy, commit, push 3"
-    status: pending
+    status: completed
 isProject: false
 ---
 
@@ -156,3 +156,65 @@ Each message follows [commit.mdc](c:\Users\Vinnie\cursor\.cursor\rules\commit.md
 - **The first tag runs `publish`, `verify`, `major-tag` and `proof` for the first time.** The manual run covers `build` only. If the run fails, fix it on `master` and release `v1.0.1`.
 - **The sum check and the download share one origin.** It catches a damaged download, and a swapped file with a swapped `SHA256SUMS` passes it.
 - **The Windows executable loads the Visual C++ runtime**, which every GitHub-hosted Windows runner has.
+
+# What the build found
+
+The plan held. A workflow can write `uses: cppalliance/cheapseek@v1`, release `v1.0.0` is published, and every run was green on Linux, macOS and Windows. Every step passed on its first run, so the build has four commits and one release. This record was written after the Release run of the tag ended and before push 3. The points below differ from the plan above, or add to it.
+
+## The result
+
+- **Release [v1.0.0](https://github.com/cppalliance/cheapseek/releases/tag/v1.0.0)** holds three executables and `SHA256SUMS`. The tags `v1.0.0` and `v1` both name commit `20f7a2b`.
+- **The Release run of the tag, 45083803557, was green in 2.3 minutes:** three builds, the publish, three `verify` jobs, the major tag, and three `proof` jobs. Each `proof` job downloaded `cppalliance/cheapseek@v1` at `20f7a2b` and got the recorded replies.
+- **The action step takes 3 to 6 seconds on a runner,** the download included.
+- **The issue is [Shekswess/rustbot#1](https://github.com/Shekswess/rustbot/issues/1),** posted with the title and the body above, unchanged.
+- **Commits:** four, as planned, with three pushes of `master` and one pushed tag.
+- **Tests:** 113 unit tests, 77 tests over HTTP and 1 doc test pass, as before. The Rust source is unchanged.
+
+## Before commit 0
+
+- **CI run 45076941716 on `2d5b65c` was green,** so the work started from a green `master`.
+- **The copy is three statuses ahead of the approved plan.** Cursor's todo list had written `completed` for the CI check and for the issue, and `in_progress` for the plan copy, into the plan file before the copy was made.
+
+## Commit 1, `b40e35e`: the action and its CI test
+
+- **The server outlives the step on all three systems, with bash alone.** In CI run 45082509388 the runner stops the process `cheapseek` when each test job completes, and the replies were compared in a later step. The fallback through `Start-Process` stayed unwritten.
+- **The start step takes 2 to 3 seconds in CI,** with the debug executable.
+- **The recorded replies are `action/check/chat.reply.json` and `action/check/echo.reply.json`.** The chat request is `Hi, I'm Sam.`, and its reply is the one the README shows. The debug build, the release build and the executables of all three systems give the same bytes.
+- **Each start gets a folder of its own under `RUNNER_TEMP`,** so one job can start two servers. The plan named one folder.
+- **The name of the repository is a constant in `start.sh`.** A copy of the repository that publishes its own releases has to change it.
+- **`check.sh` sends each request on stdin.** Bash on Windows writes a path in its own form, and curl there is a Windows program.
+- **The download and the sum check were tested on this machine before a release existed,** against a folder that looked like a release: a good sum in both formats that `sha256sum` writes, a wrong sum, and a file that `SHA256SUMS` does not list. The failures were tested too: a port the server cannot bind, a port that is not a number, a missing executable, and a runner whose system a release does not cover.
+- **Two lint tools were downloaded into a scratch folder outside the repository** for the checks on this machine: shellcheck 0.11.0 and actionlint 1.7.12. Both pass on the two scripts and on both workflows. CI uses the shellcheck of the runner image.
+- **`actions/checkout@v7` ended the Node 20 warning.**
+
+## Commit 2, `20f7a2b`: the release workflow, version 1.0.0, README and AGENTS
+
+- **Two executables are larger than the plan's 45 MB:** 91.4 MB for Linux and 58.4 MB for macOS. The Windows one is 46.2 MB. The start step still takes 3 to 6 seconds.
+- **The build job also fails when the runner builds for another target than the name of the file says.** A runner label that moves to another processor then fails the build, and a wrong file stays unpublished.
+- **The major tag moves through the GitHub API,** and it stays in place when a newer release of the same major version exists.
+- **`cargo install --git https://github.com/cppalliance/cheapseek --locked` was run on this machine,** into a scratch folder. It took 187 seconds, and the executable it built starts. The README says about three minutes.
+- **The README also says** that the Linux file needs glibc 2.35 or newer, and that `@v1` follows the newest 1.x release.
+- **CI run 45083267318 was green,** with the test jobs at 0.9 to 1.4 minutes.
+- **The manual Release run, 45083289911, was green.** The cold builds took 138 seconds on Linux, 213 on macOS and 226 on Windows.
+
+## The tag `v1.0.0`
+
+- **The tag is annotated,** with the message `CheapSeek 1.0.0`, as the release tag of Pedagogue is.
+- **The builds of the tag run took 7 to 23 seconds,** because the cache step restored the dependencies that the manual run had compiled, RustBot among them. The executables of the release therefore link dependencies from the cache of GitHub Actions. Cargo uses a cached dependency only for the same version, features, profile and compiler, and GitHub lets a tag run read a cache only from its own ref or from the default branch.
+- **All four published files were downloaded to this machine,** and each executable matches its line in `SHA256SUMS`. The action then ran here with the real download, and the server gave the recorded replies.
+- **The four jobs that ran for the first time passed:** `publish`, `verify`, `major-tag` and `proof`.
+
+## The risks, looked at again
+
+- **A background server on Windows** runs on with bash alone.
+- **The first tag** passed on its first run, so `v1.0.0` is the release.
+- **The sum check and the download share one origin.** That stays as the plan says.
+- **The Visual C++ runtime** was there: the `verify` and `proof` jobs on Windows started the downloaded executable.
+
+## Still open when this record was written
+
+- **Push 3 and its CI run.** They come after this commit, so the chat reports them.
+- **The issue on RustBot is open and waits for an answer.**
+- **A release build that starts from an empty cache.** It needs the cache step turned off for a tag.
+- **A downloaded executable on a Mac with a browser.** macOS may hold back a file that a browser downloaded. The README says `chmod +x` alone, and a test of it needs a Mac.
+- **The third-party license file and the description of the repository on GitHub,** which the plan left out.

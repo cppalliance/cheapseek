@@ -278,7 +278,7 @@ Measured on one Windows machine with a release build. Each request went through 
 
 The server keeps the bots of the last 64 conversations. A request that continues one of them runs the new turns alone, and gets the reply a full replay gives.
 
-A cold build takes about two and a half minutes, nearly all of it RustBot's 370,000 lines of rules. A cold CI test job takes four to seven minutes.
+A cold build takes about two and a half minutes, nearly all of it RustBot's 370,000 lines of rules. A cold CI test job takes four to eight minutes.
 
 ## Checks
 

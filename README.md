@@ -7,7 +7,7 @@
 
 CheapSeek is a test server that speaks the OpenAI chat-completions API and answers by rule, with zero inference. It is one small executable. Point the tests of a gateway or an agent harness at it in place of a real model, and they run fast, on the local machine, with the same reply to the same request every time.
 
-<p align="center"><img src="images/cheapseek-denim-bg-03-garage-workshop.jpg" alt="The CheapSeek mascot: a robot built from cardboard and packing tape, with bottle caps for eyes, denim patches, and its name written on its chest, in a garage workshop" width="400"></p>
+![The CheapSeek mascot: a robot built from cardboard and packing tape, with bottle caps for eyes, denim patches, and its name written on its chest, in a garage workshop with an original Macintosh on the bench](images/cheapseek-mascot.jpg)
 
 - **It talks back.** Plain chat is answered by [RustBot](https://github.com/Shekswess/rustbot), a Rust port of Hugging Face's rule-based [PyBot](https://github.com/huggingface/pybot). A reply depends on what was said, and on what was said earlier in the conversation.
 - **It calls tools.** A test writes the tool calls it wants into the prompt, or lets the request ask for one, and the server answers with real `tool_calls`.

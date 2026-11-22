@@ -1,21 +1,33 @@
 //! The routes of the API and the handlers behind them.
 
-use axum::extract::Path;
+use axum::body::Bytes;
+use axum::extract::rejection::BytesRejection;
+use axum::extract::{DefaultBodyLimit, Path};
 use axum::http::{Method, StatusCode, Uri};
 use axum::response::{IntoResponse, Response};
-use axum::routing::get;
+use axum::routing::{get, post};
 use axum::{Json, Router};
 
-use crate::wire::{ErrorBody, Model, ModelList, ModelObject};
+use crate::reply;
+use crate::wire::{
+    ChatCompletion, ChatRequest, ErrorBody, Model, ModelList, ModelObject, RequestError,
+};
 
-/// Builds the router: the model routes, and an OpenAI error envelope for
-/// every request that reaches no handler.
+/// The largest request body the server reads, in bytes. A test of a long
+/// conversation sends megabytes of history, so the limit sits far above the
+/// 2 MiB that the HTTP library allows by default.
+const MAX_BODY_BYTES: usize = 64 * 1024 * 1024;
+
+/// Builds the router: the model routes, the chat route, and an OpenAI error
+/// envelope for every request that reaches no handler.
 pub(crate) fn router() -> Router {
     Router::new()
         .route("/v1/models", get(list_models))
         .route("/v1/models/{id}", get(get_model))
+        .route("/v1/chat/completions", post(chat_completions))
         .fallback(unknown_path)
         .method_not_allowed_fallback(wrong_method)
+        .layer(DefaultBodyLimit::max(MAX_BODY_BYTES))
 }
 
 /// A failed request: the HTTP status and the error envelope that goes with
@@ -28,12 +40,12 @@ pub(crate) struct ApiError {
 
 impl ApiError {
     /// The request names a model the server lacks.
-    pub(crate) fn model_not_found(id: &str) -> ApiError {
+    fn model_not_found(id: &str) -> ApiError {
         ApiError {
             status: StatusCode::NOT_FOUND,
             body: ErrorBody::invalid_request(
                 format!("The model `{id}` does not exist."),
-                Some("model"),
+                Some("model".to_owned()),
                 Some("model_not_found"),
             ),
         }
@@ -65,6 +77,31 @@ impl ApiError {
             ),
         }
     }
+
+    /// The body could not be read: it is larger than the limit, or the
+    /// connection failed while it arrived.
+    fn unreadable_body(rejection: &BytesRejection) -> ApiError {
+        ApiError {
+            status: rejection.status(),
+            body: ErrorBody::invalid_request(
+                format!(
+                    "The request body could not be read: {}.",
+                    rejection.body_text()
+                ),
+                None,
+                None,
+            ),
+        }
+    }
+}
+
+impl From<RequestError> for ApiError {
+    fn from(error: RequestError) -> ApiError {
+        ApiError {
+            status: StatusCode::BAD_REQUEST,
+            body: ErrorBody::invalid_request(error.message, error.param, error.code),
+        }
+    }
 }
 
 impl IntoResponse for ApiError {
@@ -81,6 +118,19 @@ async fn get_model(Path(id): Path<String>) -> Result<Json<ModelObject>, ApiError
     Model::from_id(&id)
         .map(|model| Json(model.object()))
         .ok_or_else(|| ApiError::model_not_found(&id))
+}
+
+/// Answers a chat request. The body is read as plain bytes, so that a body
+/// the server cannot parse gets the error envelope like every other failure.
+async fn chat_completions(
+    body: Result<Bytes, BytesRejection>,
+) -> Result<Json<ChatCompletion>, ApiError> {
+    let body = body.map_err(|rejection| ApiError::unreadable_body(&rejection))?;
+    let request = ChatRequest::parse(&body)?;
+    let model =
+        Model::from_id(&request.model).ok_or_else(|| ApiError::model_not_found(&request.model))?;
+    let reply = reply::reply(&request, model, &body).await;
+    Ok(Json(reply.into_completion()))
 }
 
 async fn unknown_path(method: Method, uri: Uri) -> ApiError {

@@ -5,6 +5,10 @@
     reason = "a test helper panics when its setup fails, which fails the test with the reason"
 )]
 
+mod chat;
+mod chat_errors;
+mod client;
+mod echo;
 mod errors;
 mod models;
 mod process;

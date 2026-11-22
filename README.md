@@ -2,7 +2,7 @@
 
 CheapSeek is a test server that speaks the OpenAI chat-completions API and answers by rule, with zero inference. It is fast and local, and it gives the same reply to the same request every time, so the tests of a gateway or an agent harness can use it in place of a real model.
 
-This is early work. Today the server starts, prints its base URL and lists its two models. Chat completions, streaming and tool calls come next.
+This is early work. Today the server answers chat completions as one JSON object, with chat text from a rule-based bot. Streaming and tool calls come next.
 
 ## Run
 

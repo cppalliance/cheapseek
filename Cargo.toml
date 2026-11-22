@@ -30,10 +30,16 @@ clap = { version = "4.6", features = ["derive"] }
 rustbot = { git = "https://github.com/Shekswess/rustbot", rev = "fb89123ebde58ab12eca349fbf902dd640f5c3bf" }
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
+# Names the request field whose value has the wrong shape, for the error
+# message. It is in the tree already, through axum.
+serde_path_to_error = "0.1"
 tokio = { version = "1", features = ["macros", "net", "rt-multi-thread", "signal"] }
 
 [dev-dependencies]
-# default-features off: the tests talk plain HTTP to a loopback port.
+# A typed OpenAI client that this project does not write: it judges whether
+# the server's replies have the OpenAI shape. default-features off: the
+# default is a TLS stack, and the tests talk plain HTTP to a loopback port.
+async-openai = { version = "0.43", default-features = false, features = ["chat-completion"] }
 reqwest = { version = "0.13", default-features = false, features = ["json"] }
 tokio = { version = "1", features = ["io-util", "process", "sync", "time"] }
 

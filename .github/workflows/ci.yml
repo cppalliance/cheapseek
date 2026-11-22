@@ -26,21 +26,25 @@ env:
   CARGO_TERM_COLOR: always
 
 jobs:
-  # Formatting needs no cache, and it fails in seconds.
+  # Formatting needs no cache, and it fails in seconds. So does the check of
+  # the action's shell scripts, with the shellcheck of the runner image.
   fmt:
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - name: Format
         run: cargo fmt --check
+
+      - name: Check the shell scripts
+        run: shellcheck action/*.sh
 
   clippy:
     runs-on: ubuntu-latest
     timeout-minutes: 60
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - name: Cache cargo
         uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2
@@ -61,7 +65,7 @@ jobs:
     runs-on: ${{ matrix.os }}
     timeout-minutes: 90
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - name: Cache cargo
         uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2
@@ -73,6 +77,35 @@ jobs:
 
       - name: Test
         run: cargo test --locked
+
+      # The action runs here on the three systems its users run it on. It
+      # starts a copy of the executable that `cargo test` built: on Windows a
+      # running executable cannot be removed or replaced, and the steps after
+      # this one are free to do both to the files in `target`.
+      - name: Copy the executable
+        shell: bash
+        env:
+          EXECUTABLE: cheapseek${{ runner.os == 'Windows' && '.exe' || '' }}
+        run: cp "target/debug/$EXECUTABLE" "$RUNNER_TEMP/$EXECUTABLE"
+
+      - name: Start the server through the action
+        id: cheapseek
+        uses: ./
+        with:
+          executable: ${{ runner.temp }}/cheapseek${{ runner.os == 'Windows' && '.exe' || '' }}
+
+      # The step that started the server has ended, so a reply here shows
+      # that the server outlives it.
+      - name: Compare the recorded replies
+        shell: bash
+        env:
+          BASE_URL: ${{ steps.cheapseek.outputs.base-url }}
+        run: |
+          if [ "$BASE_URL" != "$CHEAPSEEK_BASE_URL" ]; then
+            echo "the output is '$BASE_URL' and the environment holds '$CHEAPSEEK_BASE_URL'"
+            exit 1
+          fi
+          bash action/check.sh "$BASE_URL"
 
       # A build or a test that writes into the repository is caught here
       # rather than in a later diff.
@@ -91,7 +124,7 @@ jobs:
     env:
       RUSTDOCFLAGS: -D warnings
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - name: Cache cargo
         uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2
@@ -103,7 +136,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - uses: taiki-e/install-action@3f74d7c16a4242f1c95561e98edc25d36adb4375 # v2
         with:

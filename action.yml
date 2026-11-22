@@ -1,0 +1,35 @@
+name: CheapSeek
+description: Start a CheapSeek server, a rule-based stand-in for an OpenAI model, for the rest of the job
+
+# The server binds 127.0.0.1 and runs until the job ends, when the runner
+# stops it. Steps after this one reach it through the `base-url` output or
+# the `CHEAPSEEK_BASE_URL` environment variable.
+
+inputs:
+  port:
+    description: The port to listen on, on 127.0.0.1. 0 takes a free port.
+    default: "0"
+  executable:
+    description: >-
+      The path of a CheapSeek executable to start. When it is empty, the
+      action downloads the executable of its own release.
+    default: ""
+
+outputs:
+  base-url:
+    description: The base URL an OpenAI client takes, such as http://127.0.0.1:54321/v1
+    value: ${{ steps.start.outputs.base-url }}
+
+runs:
+  using: composite
+  steps:
+    # The path of the action is read from the environment and quoted: on
+    # Windows it holds backslashes, which bash would drop from an expression
+    # pasted into the command line.
+    - name: Start CheapSeek
+      id: start
+      shell: bash
+      env:
+        CHEAPSEEK_PORT: ${{ inputs.port }}
+        CHEAPSEEK_EXECUTABLE: ${{ inputs.executable }}
+      run: bash "$GITHUB_ACTION_PATH/action/start.sh"

@@ -1,0 +1,135 @@
+name: CI
+
+# The checks of AGENTS.md, on every pull request and on every push to master.
+#
+# No job installs a toolchain. `rust-toolchain.toml` names the channel and its
+# components, and rustup installs exactly that on the first cargo call, so the
+# version lives in one file and cannot drift from CI.
+
+on:
+  push:
+    branches: [master]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  # A CI build starts from a cache of dependencies or from nothing, so
+  # incremental data only costs time and cache space.
+  CARGO_INCREMENTAL: 0
+  CARGO_TERM_COLOR: always
+
+jobs:
+  # Formatting needs no cache, and it fails in seconds.
+  fmt:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Format
+        run: cargo fmt --check
+
+  clippy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Cache cargo
+        uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2
+
+      # The lints table denies clippy's `all` and `pedantic` groups, and
+      # `.cargo/config.toml` denies every warning, so any diagnostic fails
+      # this step.
+      - name: Clippy
+        run: cargo clippy --all-targets --locked
+
+  # The same request must get the same bytes on every system, so the tests
+  # run on all three.
+  test:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Cache cargo
+        uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2
+
+      # The build and the run are two steps, so a failure says which of the
+      # two it is, and the log shows how long each takes.
+      - name: Build the tests
+        run: cargo test --locked --no-run
+
+      - name: Test
+        run: cargo test --locked
+
+      # A build or a test that writes into the repository is caught here
+      # rather than in a later diff.
+      - name: Clean tree
+        shell: bash
+        run: |
+          if [ -n "$(git status --porcelain)" ]; then
+            echo "the build or the tests dirtied the repository:"
+            git status --porcelain
+            exit 1
+          fi
+
+  docs:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    env:
+      RUSTDOCFLAGS: -D warnings
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Cache cargo
+        uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2
+
+      - name: Docs
+        run: cargo doc --no-deps --locked
+
+  supply-chain:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: taiki-e/install-action@3f74d7c16a4242f1c95561e98edc25d36adb4375 # v2
+        with:
+          tool: cargo-deny
+
+      - name: cargo deny
+        run: cargo deny check
+
+  # One required status check for branch protection: it fails when any job
+  # fails or is cancelled, so a cancelled job cannot read as green. `needs:`
+  # is a static list, so every new job must be added here or it bypasses the
+  # gate.
+  ci-green:
+    runs-on: ubuntu-latest
+    needs: [fmt, clippy, test, docs, supply-chain]
+    if: always()
+    timeout-minutes: 5
+    steps:
+      - name: Verify every job succeeded
+        shell: bash
+        run: |
+          status=0
+          for result in ${{ join(needs.*.result, ' ') }}; do
+            if [ "$result" != "success" ]; then
+              echo "a required job did not succeed: $result"
+              status=1
+            fi
+          done
+          exit $status

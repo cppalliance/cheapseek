@@ -1,0 +1,24 @@
+allow-unwrap-in-tests = true
+allow-expect-in-tests = true
+
+# Size limits sit on functions. A file has no length limit.
+too-many-lines-threshold = 100
+too-many-arguments-threshold = 7
+
+# The same request must always get the same bytes. A hash seed and the clock
+# are the two things in the standard library that could change a reply from
+# one run to the next, so the code uses B-tree collections and reads no clock.
+disallowed-types = [
+    { path = "std::collections::HashMap", reason = "iteration order depends on a random seed; use BTreeMap" },
+    { path = "std::collections::HashSet", reason = "iteration order depends on a random seed; use BTreeSet" },
+    { path = "std::time::SystemTime", reason = "a reply must never depend on the clock" },
+]
+
+# The two clock reads belong to the rule above. The panic hook is
+# process-global state, so only a binary entry point may install one, under
+# `#[expect(clippy::disallowed_methods, reason = ...)]`.
+disallowed-methods = [
+    { path = "std::time::SystemTime::now", reason = "a reply must never depend on the clock" },
+    { path = "std::time::Instant::now", reason = "a reply must never depend on the clock" },
+    { path = "std::panic::set_hook", reason = "use a returned error instead, because the panic hook is process-global state that only a binary entry point may install" },
+]

@@ -1,0 +1,10 @@
+# Dev-only: in a checkout, `cargo build`, `cargo clippy` and `cargo test`
+# fail on any warning, clippy's pedantic group included. Cargo reads this
+# file only for a build that starts inside this repository.
+[build]
+rustflags = ["-D", "warnings"]
+
+# Clippy appends a docs-link line to every diagnostic; the lint name already
+# identifies it.
+[env]
+CLIPPY_DISABLE_DOCS_LINKS = "1"

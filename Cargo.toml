@@ -1,0 +1,68 @@
+[package]
+name = "cheapseek"
+version = "0.1.0"
+edition = "2024"
+# The toolchain that `rust-toolchain.toml` pins. Every build and test runs on
+# it, so this is the one version the package is known to build with.
+rust-version = "1.99"
+license = "BSL-1.0"
+description = "A test server that speaks the OpenAI chat-completions API and answers by rule, with zero inference"
+repository = "https://github.com/cppalliance/cheapseek"
+readme = "README.md"
+publish = false
+# One integration-test binary, declared below, so that every test of the
+# public behavior runs in one process.
+autotests = false
+
+[[test]]
+name = "it"
+path = "tests/it/main.rs"
+
+[dependencies]
+# default-features off: the server speaks plain HTTP/1.1 with JSON bodies.
+axum = { version = "0.8", default-features = false, features = ["http1", "json", "tokio"] }
+clap = { version = "4.6", features = ["derive"] }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+tokio = { version = "1", features = ["macros", "net", "rt-multi-thread", "signal"] }
+
+[dev-dependencies]
+# default-features off: the tests talk plain HTTP to a loopback port.
+reqwest = { version = "0.13", default-features = false, features = ["json"] }
+tokio = { version = "1", features = ["io-util", "process", "sync", "time"] }
+
+[lints.rust]
+unsafe_code = "deny"
+missing_docs = "warn"
+missing_debug_implementations = "warn"
+unreachable_pub = "warn"
+unsafe_op_in_unsafe_fn = "deny"
+future_incompatible = { level = "warn", priority = -1 }
+rust_2018_idioms = { level = "warn", priority = -1 }
+
+[lints.rustdoc]
+broken_intra_doc_links = "deny"
+private_intra_doc_links = "deny"
+unescaped_backticks = "deny"
+
+[lints.clippy]
+all = { level = "deny", priority = -1 }
+pedantic = { level = "deny", priority = -1 }
+unwrap_used = "deny"
+expect_used = "deny"
+dbg_macro = "warn"
+todo = "deny"
+undocumented_unsafe_blocks = "deny"
+missing_safety_doc = "deny"
+allow_attributes = "deny"
+allow_attributes_without_reason = "deny"
+exit = "deny"
+disallowed_methods = "deny"
+disallowed_types = "deny"
+disallowed_macros = "deny"
+# Cherry-picked out of pedantic: it flags product names (OpenAI, RustBot) in
+# prose, which reads worse backticked than the lint is worth.
+doc_markdown = "allow"
+# Cherry-picked out of pedantic: its suggested rewrite for a collection is
+# `assert_eq!(x, [] as [T; 0])`, which has to spell out the element type.
+assert_is_empty = "allow"

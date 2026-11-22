@@ -21,6 +21,7 @@
 
 mod api;
 mod brain;
+mod directive;
 mod reply;
 mod schema;
 mod sse;

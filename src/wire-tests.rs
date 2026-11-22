@@ -183,6 +183,87 @@ fn a_request_says_whether_it_streams_and_whether_it_wants_the_usage() {
 }
 
 #[test]
+fn a_request_holds_its_tools_its_choice_and_the_calls_of_its_messages() {
+    let request = ChatRequest::parse(
+        br#"{"model":"cheapseek",
+            "tools":[
+                {"type":"function","function":{"name":"read_file","description":"Read.","parameters":{"type":"object"},"strict":true}},
+                {"type":"custom","custom":{"name":"shell"}}
+            ],
+            "tool_choice":{"type":"function","function":{"name":"read_file"}},
+            "messages":[
+                {"role":"user","content":"go"},
+                {"role":"assistant","content":null,"tool_calls":[
+                    {"id":"call_1","type":"function","function":{"name":"read_file","arguments":"{}"}}
+                ]},
+                {"role":"tool","tool_call_id":"call_1","content":"text"}
+            ]}"#,
+    )
+    .expect("a valid request");
+    assert_eq!(request.tools().len(), 2);
+    let functions: Vec<&str> = request
+        .functions()
+        .map(|function| function.name.as_str())
+        .collect();
+    assert_eq!(functions, ["read_file"]);
+    assert!(matches!(
+        &request.tool_choice,
+        Some(ToolChoice::Function { function, .. }) if function.name == "read_file"
+    ));
+    assert_eq!(
+        request.messages[1].tool_calls(),
+        [ToolCall::new(
+            "call_1".to_owned(),
+            "read_file".to_owned(),
+            "{}".to_owned()
+        )]
+    );
+    assert_eq!(request.messages[2].tool_call_id.as_deref(), Some("call_1"));
+    assert_eq!(request.messages[0].tool_calls(), []);
+}
+
+#[test]
+fn a_tool_choice_is_one_of_three_words_or_a_function() {
+    let choice = |json: &str| {
+        let body = format!(
+            r#"{{"model":"m","messages":[{{"role":"user","content":"hi"}}],"tools":[{{"type":"function","function":{{"name":"f"}}}}],"tool_choice":{json}}}"#
+        );
+        ChatRequest::parse(body.as_bytes()).map(|request| request.tool_choice)
+    };
+    assert!(matches!(
+        choice(r#""none""#),
+        Ok(Some(ToolChoice::Mode(ToolMode::None)))
+    ));
+    assert!(matches!(
+        choice(r#""auto""#),
+        Ok(Some(ToolChoice::Mode(ToolMode::Auto)))
+    ));
+    assert!(matches!(
+        choice(r#""required""#),
+        Ok(Some(ToolChoice::Mode(ToolMode::Required)))
+    ));
+    assert!(matches!(choice("null"), Ok(None)));
+    let error = choice(r#""sometimes""#).expect_err("an unknown word");
+    assert_eq!(error.param.as_deref(), Some("tool_choice"));
+}
+
+#[test]
+fn a_tool_choice_without_tools_is_refused() {
+    let error = error(
+        r#"{"model":"cheapseek","messages":[{"role":"user","content":"hi"}],"tool_choice":"auto"}"#,
+    );
+    assert_eq!(
+        error,
+        RequestError {
+            message: "Invalid parameter: 'tool_choice' is only allowed when 'tools' are specified."
+                .to_owned(),
+            param: Some("tool_choice".to_owned()),
+            code: None,
+        }
+    );
+}
+
+#[test]
 fn stream_options_without_a_stream_are_refused() {
     let error = error(
         r#"{"model":"cheapseek","messages":[{"role":"user","content":"hi"}],"stream_options":{"include_usage":true}}"#,

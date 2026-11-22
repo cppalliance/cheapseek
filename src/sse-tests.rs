@@ -1,14 +1,36 @@
 use serde_json::{Value, json};
 
 use super::*;
-use crate::wire::{FinishReason, Usage};
+use crate::wire::{FinishReason, ToolCall, Usage};
 
 fn reply(text: &str, finish: FinishReason) -> Reply {
     Reply {
         id: "chatcmpl-0123456789abcdef".to_owned(),
         model: "cheapseek".to_owned(),
-        text: text.to_owned(),
+        output: Output::Text(text.to_owned()),
         finish,
+        usage: Usage::new(3, 2),
+    }
+}
+
+/// A reply that calls these tools, each a name and its arguments.
+fn calling(calls: &[(&str, &str)]) -> Reply {
+    let calls = calls
+        .iter()
+        .enumerate()
+        .map(|(index, (name, arguments))| {
+            ToolCall::new(
+                format!("call_{index}"),
+                (*name).to_owned(),
+                (*arguments).to_owned(),
+            )
+        })
+        .collect();
+    Reply {
+        id: "chatcmpl-0123456789abcdef".to_owned(),
+        model: "cheapseek".to_owned(),
+        output: Output::Calls(calls),
+        finish: FinishReason::ToolCalls,
         usage: Usage::new(3, 2),
     }
 }
@@ -105,6 +127,71 @@ fn the_usage_option_adds_a_last_chunk_with_no_choices_and_null_usage_before_it()
         before.last().expect("a finish chunk")["choices"][0]["finish_reason"],
         "length"
     );
+}
+
+#[test]
+fn a_tool_call_sends_its_id_and_name_first_and_then_its_arguments_token_by_token() {
+    let events = events(&calling(&[("read", r#"{"a":1}"#)]), false).expect("events");
+    let chunks = chunks(&events);
+    let deltas: Vec<&Value> = chunks
+        .iter()
+        .map(|chunk| &chunk["choices"][0]["delta"])
+        .collect();
+    assert_eq!(
+        *deltas[0],
+        json!({ "role": "assistant", "content": null, "refusal": null })
+    );
+    assert_eq!(
+        *deltas[1],
+        json!({ "tool_calls": [{
+            "index": 0,
+            "id": "call_0",
+            "type": "function",
+            "function": { "name": "read", "arguments": "" }
+        }] })
+    );
+    let pieces: Vec<&str> = deltas[2..deltas.len() - 1]
+        .iter()
+        .map(|delta| {
+            let call = &delta["tool_calls"][0];
+            assert_eq!(call["index"], 0);
+            assert_eq!(call.get("id"), None, "the id comes once: {delta}");
+            assert_eq!(
+                call["function"].get("name"),
+                None,
+                "the name comes once: {delta}"
+            );
+            call["function"]["arguments"]
+                .as_str()
+                .expect("a piece of the arguments")
+        })
+        .collect();
+    assert_eq!(pieces, ["{", "\"", "a", "\"", ":", "1", "}"]);
+    assert_eq!(**deltas.last().expect("a finish chunk"), json!({}));
+    assert_eq!(
+        chunks.last().expect("a finish chunk")["choices"][0]["finish_reason"],
+        "tool_calls"
+    );
+}
+
+#[test]
+fn two_tool_calls_stream_one_after_the_other_under_their_own_indexes() {
+    let events = events(&calling(&[("a", "{}"), ("b", "{}")]), false).expect("events");
+    let chunks = chunks(&events);
+    let starts: Vec<(u64, &str)> = chunks
+        .iter()
+        .filter_map(|chunk| {
+            let call = &chunk["choices"][0]["delta"]["tool_calls"][0];
+            Some((call["index"].as_u64()?, call["function"]["name"].as_str()?))
+        })
+        .collect();
+    assert_eq!(starts, [(0, "a"), (1, "b")]);
+    let indexes: Vec<u64> = chunks
+        .iter()
+        .filter_map(|chunk| chunk["choices"][0]["delta"]["tool_calls"][0]["index"].as_u64())
+        .collect();
+    // For each call: its start, then `{` and `}`.
+    assert_eq!(indexes, [0, 0, 0, 1, 1, 1]);
 }
 
 #[test]

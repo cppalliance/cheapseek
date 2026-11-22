@@ -143,7 +143,13 @@ pub(crate) struct RequestError {
 }
 
 impl RequestError {
-    fn new(message: String, param: Option<&str>, code: Option<&'static str>) -> RequestError {
+    /// An error with this message. `param` names the request field at
+    /// fault, and `code` is the short machine-readable name of the failure.
+    pub(crate) fn new(
+        message: String,
+        param: Option<&str>,
+        code: Option<&'static str>,
+    ) -> RequestError {
         RequestError {
             message,
             param: param.map(str::to_owned),
@@ -185,6 +191,111 @@ pub(crate) struct ChatRequest {
     /// The form the caller wants the reply text in.
     #[serde(default)]
     pub(crate) response_format: Option<ResponseFormat>,
+    /// The tools the model may call.
+    #[serde(default)]
+    tools: Option<Vec<Tool>>,
+    /// Whether the model may, must, or must not call a tool.
+    #[serde(default)]
+    pub(crate) tool_choice: Option<ToolChoice>,
+}
+
+/// One entry of the `tools` field. It is written back out by the echo
+/// model, so it keeps the fields a reader of the prompt wants to see.
+#[derive(Debug, Deserialize, Serialize)]
+pub(crate) struct Tool {
+    /// The kind of tool. The reply rules call tools of the kind `function`.
+    #[serde(rename = "type")]
+    kind: String,
+    /// The function, when the tool is one.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    function: Option<FunctionTool>,
+}
+
+/// The function of a tool: what a model reads to decide on a call.
+#[derive(Debug, Deserialize, Serialize)]
+pub(crate) struct FunctionTool {
+    /// The name a call uses.
+    pub(crate) name: String,
+    /// What the function does, in words.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    description: Option<String>,
+    /// The JSON Schema of the arguments.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub(crate) parameters: Option<Value>,
+}
+
+/// The `tool_choice` field.
+#[derive(Debug, Deserialize, Serialize)]
+#[serde(untagged)]
+pub(crate) enum ToolChoice {
+    /// One of the three words.
+    Mode(ToolMode),
+    /// One function the model must call.
+    Function {
+        /// Always `function`.
+        #[serde(rename = "type")]
+        kind: String,
+        /// The function to call.
+        function: FunctionName,
+    },
+}
+
+/// The words a `tool_choice` can be.
+#[derive(Clone, Copy, Debug, Deserialize, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "lowercase")]
+pub(crate) enum ToolMode {
+    /// The model must not call a tool.
+    None,
+    /// The model may call a tool. This is what an absent field means.
+    Auto,
+    /// The model must call a tool.
+    Required,
+}
+
+/// The name of the one function a `tool_choice` forces.
+#[derive(Debug, Deserialize, Serialize)]
+pub(crate) struct FunctionName {
+    /// The name of the function.
+    pub(crate) name: String,
+}
+
+/// One tool call, as a request holds it in an assistant message and as a
+/// reply holds it.
+#[derive(Clone, Debug, Deserialize, PartialEq, Eq, Serialize)]
+pub(crate) struct ToolCall {
+    /// The id that the tool message with the result names.
+    pub(crate) id: String,
+    /// Always `function`.
+    #[serde(rename = "type", default = "function_kind")]
+    kind: String,
+    /// The function and its arguments.
+    pub(crate) function: FunctionCall,
+}
+
+impl ToolCall {
+    /// A call to the function `name` with `arguments`, a JSON object as
+    /// text.
+    pub(crate) fn new(id: String, name: String, arguments: String) -> ToolCall {
+        ToolCall {
+            id,
+            kind: function_kind(),
+            function: FunctionCall { name, arguments },
+        }
+    }
+}
+
+/// The kind of every tool call the server reads or writes.
+fn function_kind() -> String {
+    "function".to_owned()
+}
+
+/// The function a tool call names, and its arguments.
+#[derive(Clone, Debug, Deserialize, PartialEq, Eq, Serialize)]
+pub(crate) struct FunctionCall {
+    /// The name of the function.
+    pub(crate) name: String,
+    /// The arguments: a JSON object, written as text.
+    pub(crate) arguments: String,
 }
 
 /// The `response_format` field: the form the reply text takes.
@@ -288,6 +399,14 @@ impl ChatRequest {
         if let Some(n) = self.n.filter(|n| *n > 1) {
             return Err(unsupported("n", &n.to_string()));
         }
+        if self.tool_choice.is_some() && self.tools().is_empty() {
+            return Err(RequestError::new(
+                "Invalid parameter: 'tool_choice' is only allowed when 'tools' are specified."
+                    .to_owned(),
+                Some("tool_choice"),
+                None,
+            ));
+        }
         if self.stream_options.is_some() && !self.streams() {
             return Err(RequestError::new(
                 "The 'stream_options' parameter is only allowed when 'stream' is enabled."
@@ -344,6 +463,18 @@ impl ChatRequest {
             .and_then(|options| options.include_usage)
             == Some(true)
     }
+
+    /// The tools the request offers, as it wrote them.
+    pub(crate) fn tools(&self) -> &[Tool] {
+        self.tools.as_deref().unwrap_or_default()
+    }
+
+    /// The functions among the tools, in the order the request names them.
+    pub(crate) fn functions(&self) -> impl Iterator<Item = &FunctionTool> {
+        self.tools()
+            .iter()
+            .filter_map(|tool| tool.function.as_ref())
+    }
 }
 
 /// The error for a body that is not JSON.
@@ -398,6 +529,15 @@ pub(crate) struct Message {
     /// has none.
     #[serde(default)]
     content: Option<Content>,
+    /// The tool calls of an assistant message.
+    #[serde(default)]
+    tool_calls: Option<Vec<ToolCall>>,
+    /// The id of the call that a tool message answers.
+    #[serde(default)]
+    pub(crate) tool_call_id: Option<String>,
+    /// The name of the function that a `function` message answers.
+    #[serde(default)]
+    pub(crate) name: Option<String>,
 }
 
 impl Message {
@@ -412,6 +552,11 @@ impl Message {
                 parts.iter().map(Part::text).collect::<Vec<_>>().join("\n")
             }
         }
+    }
+
+    /// The tool calls of the message. Only an assistant message has any.
+    pub(crate) fn tool_calls(&self) -> &[ToolCall] {
+        self.tool_calls.as_deref().unwrap_or_default()
     }
 }
 
@@ -491,7 +636,7 @@ impl ChatCompletion {
     pub(crate) fn new(
         id: String,
         model: String,
-        content: String,
+        message: AssistantMessage,
         finish_reason: FinishReason,
         usage: Usage,
     ) -> ChatCompletion {
@@ -502,11 +647,7 @@ impl ChatCompletion {
             model,
             choices: [Choice {
                 index: 0,
-                message: AssistantMessage {
-                    role: "assistant",
-                    content: Some(content),
-                    refusal: None,
-                },
+                message,
                 logprobs: None,
                 finish_reason,
             }],
@@ -526,12 +667,38 @@ struct Choice {
     finish_reason: FinishReason,
 }
 
-/// The message the model wrote. `refusal` is always `null`.
+/// The message the model wrote: text, or tool calls. `refusal` is always
+/// `null`.
 #[derive(Debug, Serialize)]
-struct AssistantMessage {
+pub(crate) struct AssistantMessage {
     role: &'static str,
     content: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    tool_calls: Option<Vec<ToolCall>>,
     refusal: Option<()>,
+}
+
+impl AssistantMessage {
+    /// A message that says `content`.
+    pub(crate) const fn text(content: String) -> AssistantMessage {
+        AssistantMessage {
+            role: "assistant",
+            content: Some(content),
+            tool_calls: None,
+            refusal: None,
+        }
+    }
+
+    /// A message that calls tools and says nothing, so its content is
+    /// `null`.
+    pub(crate) const fn calls(tool_calls: Vec<ToolCall>) -> AssistantMessage {
+        AssistantMessage {
+            role: "assistant",
+            content: None,
+            tool_calls: Some(tool_calls),
+            refusal: None,
+        }
+    }
 }
 
 /// Why the reply ended.
@@ -542,6 +709,8 @@ pub(crate) enum FinishReason {
     Stop,
     /// The token limit cut the reply.
     Length,
+    /// The reply is tool calls, and the caller runs them next.
+    ToolCalls,
 }
 
 /// One chunk of a streamed reply: the JSON of one server-sent event.
@@ -636,12 +805,12 @@ struct ChunkChoice<'a> {
 #[derive(Debug, Serialize)]
 #[serde(untagged)]
 pub(crate) enum Delta<'a> {
-    /// The first chunk: the role, and empty content to add to.
+    /// The first chunk: the role, and the content to add to.
     Role {
         /// Always `assistant`.
         role: &'static str,
-        /// Always empty.
-        content: &'static str,
+        /// Empty text before text, and `null` before tool calls.
+        content: Option<&'static str>,
         /// Always `null`.
         refusal: Option<()>,
     },
@@ -650,17 +819,77 @@ pub(crate) enum Delta<'a> {
         /// The token.
         content: &'a str,
     },
+    /// The start of one tool call, or one more piece of its arguments.
+    Call {
+        /// The one call this chunk adds to.
+        tool_calls: [CallDelta<'a>; 1],
+    },
     /// Nothing: the chunk only ends the choice.
     Empty {},
 }
 
-impl Delta<'_> {
-    /// The delta of the first chunk of every stream.
-    pub(crate) const fn role() -> Delta<'static> {
+/// What one chunk adds to one tool call. The first chunk of a call holds
+/// its id, its kind and its name. Every later chunk holds one piece of the
+/// arguments, and a reader joins the pieces.
+#[derive(Debug, Serialize)]
+pub(crate) struct CallDelta<'a> {
+    index: u32,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    id: Option<&'a str>,
+    #[serde(rename = "type", skip_serializing_if = "Option::is_none")]
+    kind: Option<&'static str>,
+    function: FunctionDelta<'a>,
+}
+
+/// The function part of a [`CallDelta`].
+#[derive(Debug, Serialize)]
+struct FunctionDelta<'a> {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    name: Option<&'a str>,
+    arguments: &'a str,
+}
+
+impl<'a> Delta<'a> {
+    /// The delta of the first chunk of a stream. `text` says whether text
+    /// follows: its content then starts empty, and before tool calls it is
+    /// `null`.
+    pub(crate) const fn role(text: bool) -> Delta<'static> {
         Delta::Role {
             role: "assistant",
-            content: "",
+            content: if text { Some("") } else { None },
             refusal: None,
+        }
+    }
+
+    /// The delta that starts the tool call at `index`: its id and its name,
+    /// with arguments to add to.
+    pub(crate) const fn call_start(index: u32, id: &'a str, name: &'a str) -> Delta<'a> {
+        Delta::Call {
+            tool_calls: [CallDelta {
+                index,
+                id: Some(id),
+                kind: Some("function"),
+                function: FunctionDelta {
+                    name: Some(name),
+                    arguments: "",
+                },
+            }],
+        }
+    }
+
+    /// The delta that adds one piece to the arguments of the tool call at
+    /// `index`.
+    pub(crate) const fn call_piece(index: u32, arguments: &'a str) -> Delta<'a> {
+        Delta::Call {
+            tool_calls: [CallDelta {
+                index,
+                id: None,
+                kind: None,
+                function: FunctionDelta {
+                    name: None,
+                    arguments,
+                },
+            }],
         }
     }
 }

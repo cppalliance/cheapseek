@@ -1,8 +1,9 @@
 //! A reply as a stream of server-sent events, in the order OpenAI sends
 //! them:
 //!
-//! 1. a chunk with the role and empty content,
-//! 2. one chunk per token of the text,
+//! 1. a chunk with the role,
+//! 2. one chunk per token of the text, or for each tool call a chunk with
+//!    its id and its name, then one chunk per token of its arguments,
 //! 3. a chunk with an empty delta and the finish reason,
 //! 4. when the request asked for the usage, a chunk with no choices and the
 //!    usage of the whole reply,
@@ -18,7 +19,7 @@ use axum::http::header::{CACHE_CONTROL, CONTENT_TYPE};
 use axum::response::{IntoResponse, Response};
 use futures_util::stream;
 
-use crate::reply::Reply;
+use crate::reply::{Output, Reply};
 use crate::tokens;
 use crate::wire::{ChatChunk, Delta};
 
@@ -33,9 +34,26 @@ const DONE: &str = "data: [DONE]\n\n";
 /// Returns the error of a chunk that could not be written as JSON.
 pub(crate) fn events(reply: &Reply, with_usage: bool) -> serde_json::Result<Vec<String>> {
     let chunk = |delta, finish| ChatChunk::new(&reply.id, &reply.model, delta, finish, with_usage);
-    let mut events = vec![event(&chunk(Delta::role(), None))?];
-    for token in tokens::split(&reply.text) {
-        events.push(event(&chunk(Delta::Content { content: token }, None))?);
+    let mut events = Vec::new();
+    match &reply.output {
+        Output::Text(text) => {
+            events.push(event(&chunk(Delta::role(true), None))?);
+            for token in tokens::split(text) {
+                events.push(event(&chunk(Delta::Content { content: token }, None))?);
+            }
+        }
+        Output::Calls(calls) => {
+            events.push(event(&chunk(Delta::role(false), None))?);
+            for (index, call) in calls.iter().enumerate() {
+                let index = u32::try_from(index).unwrap_or(u32::MAX);
+                let function = &call.function;
+                let start = Delta::call_start(index, &call.id, &function.name);
+                events.push(event(&chunk(start, None))?);
+                for piece in tokens::split(&function.arguments) {
+                    events.push(event(&chunk(Delta::call_piece(index, piece), None))?);
+                }
+            }
+        }
     }
     events.push(event(&chunk(Delta::Empty {}, Some(reply.finish)))?);
     if with_usage {

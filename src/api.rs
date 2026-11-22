@@ -137,7 +137,7 @@ async fn chat_completions(body: Result<Bytes, BytesRejection>) -> Result<Respons
     let request = ChatRequest::parse(&body)?;
     let model =
         Model::from_id(&request.model).ok_or_else(|| ApiError::model_not_found(&request.model))?;
-    let reply = reply::reply(&request, model, &body).await;
+    let reply = reply::reply(&request, model, &body).await?;
     if request.streams() {
         let events = sse::events(&reply, request.includes_usage())
             .map_err(|error| ApiError::internal(&error))?;

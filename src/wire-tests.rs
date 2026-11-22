@@ -156,11 +156,46 @@ fn more_than_one_choice_is_unsupported() {
 }
 
 #[test]
-fn a_reply_as_a_stream_is_unsupported() {
-    let error =
-        error(r#"{"model":"cheapseek","messages":[{"role":"user","content":"hi"}],"stream":true}"#);
-    assert_eq!(error.param.as_deref(), Some("stream"));
-    assert_eq!(error.code, Some("unsupported_value"));
+fn a_request_says_whether_it_streams_and_whether_it_wants_the_usage() {
+    let read = |extra: &str| {
+        let body = format!(
+            r#"{{"model":"cheapseek","messages":[{{"role":"user","content":"hi"}}]{extra}}}"#
+        );
+        let request = ChatRequest::parse(body.as_bytes()).expect("a valid request");
+        (request.streams(), request.includes_usage())
+    };
+    assert_eq!(read(""), (false, false));
+    assert_eq!(read(r#","stream":false"#), (false, false));
+    assert_eq!(
+        read(r#","stream":null,"stream_options":null"#),
+        (false, false)
+    );
+    assert_eq!(read(r#","stream":true"#), (true, false));
+    assert_eq!(read(r#","stream":true,"stream_options":{}"#), (true, false));
+    assert_eq!(
+        read(r#","stream":true,"stream_options":{"include_usage":false}"#),
+        (true, false)
+    );
+    assert_eq!(
+        read(r#","stream":true,"stream_options":{"include_usage":true}"#),
+        (true, true)
+    );
+}
+
+#[test]
+fn stream_options_without_a_stream_are_refused() {
+    let error = error(
+        r#"{"model":"cheapseek","messages":[{"role":"user","content":"hi"}],"stream_options":{"include_usage":true}}"#,
+    );
+    assert_eq!(
+        error,
+        RequestError {
+            message: "The 'stream_options' parameter is only allowed when 'stream' is enabled."
+                .to_owned(),
+            param: Some("stream_options".to_owned()),
+            code: None,
+        }
+    );
 }
 
 #[test]

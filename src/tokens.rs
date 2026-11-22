@@ -63,7 +63,6 @@ pub(crate) fn count(text: &str) -> u64 {
 }
 
 /// The tokens of `text`, in order. Joined together they are `text`.
-#[cfg(test)]
 pub(crate) fn split(text: &str) -> Vec<&str> {
     let mut start = 0;
     ends(text)

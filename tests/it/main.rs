@@ -12,4 +12,5 @@ mod echo;
 mod errors;
 mod models;
 mod process;
+mod stream;
 mod support;

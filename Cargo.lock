@@ -233,6 +233,7 @@ dependencies = [
  "async-openai",
  "axum",
  "clap",
+ "futures-util",
  "reqwest",
  "rustbot",
  "serde",

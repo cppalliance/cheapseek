@@ -22,6 +22,9 @@ path = "tests/it/main.rs"
 # default-features off: the server speaks plain HTTP/1.1 with JSON bodies.
 axum = { version = "0.8", default-features = false, features = ["http1", "json", "tokio"] }
 clap = { version = "4.6", features = ["derive"] }
+# Turns the events of a streamed reply into a response body. It is in the
+# tree already, through axum.
+futures-util = { version = "0.3", default-features = false }
 # The chat brain: a Rust port of PyBot. It lives on GitHub only, and the
 # commit is pinned so that a reply cannot change under the tests.
 # `Cargo.lock` keeps `regex`, `regex-automata`, `regex-syntax` and `smallvec`

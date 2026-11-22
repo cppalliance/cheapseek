@@ -116,6 +116,18 @@ impl ErrorBody {
             },
         }
     }
+
+    /// The envelope of a failure inside the server.
+    pub(crate) fn server_error(message: String) -> ErrorBody {
+        ErrorBody {
+            error: ErrorDetail {
+                message,
+                kind: "server_error",
+                param: None,
+                code: None,
+            },
+        }
+    }
 }
 
 /// What is wrong with the body of a chat request. The API answers it with a
@@ -167,6 +179,17 @@ pub(crate) struct ChatRequest {
     /// Whether the caller wants the reply as a stream.
     #[serde(default)]
     stream: Option<bool>,
+    /// What the caller wants added to the stream.
+    #[serde(default)]
+    stream_options: Option<StreamOptions>,
+}
+
+/// The `stream_options` field.
+#[derive(Debug, Deserialize)]
+struct StreamOptions {
+    /// Whether the stream ends with a chunk that holds the usage.
+    #[serde(default)]
+    include_usage: Option<bool>,
 }
 
 /// The most stop sequences a request may name, as OpenAI limits them.
@@ -235,8 +258,13 @@ impl ChatRequest {
         if let Some(n) = self.n.filter(|n| *n > 1) {
             return Err(unsupported("n", &n.to_string()));
         }
-        if self.stream == Some(true) {
-            return Err(unsupported("stream", "true"));
+        if self.stream_options.is_some() && !self.streams() {
+            return Err(RequestError::new(
+                "The 'stream_options' parameter is only allowed when 'stream' is enabled."
+                    .to_owned(),
+                Some("stream_options"),
+                None,
+            ));
         }
         let stops = self.stops().len();
         if stops > MAX_STOPS {
@@ -272,6 +300,19 @@ impl ChatRequest {
     /// gets seed 0, so it is as repeatable as one that does.
     pub(crate) fn seed(&self) -> i64 {
         self.seed.unwrap_or(0)
+    }
+
+    /// Whether the caller wants the reply as a stream of server-sent events.
+    pub(crate) fn streams(&self) -> bool {
+        self.stream == Some(true)
+    }
+
+    /// Whether the stream ends with a chunk that holds the usage.
+    pub(crate) fn includes_usage(&self) -> bool {
+        self.stream_options
+            .as_ref()
+            .and_then(|options| options.include_usage)
+            == Some(true)
     }
 }
 
@@ -471,6 +512,127 @@ pub(crate) enum FinishReason {
     Stop,
     /// The token limit cut the reply.
     Length,
+}
+
+/// One chunk of a streamed reply: the JSON of one server-sent event.
+#[derive(Debug, Serialize)]
+pub(crate) struct ChatChunk<'a> {
+    id: &'a str,
+    object: &'static str,
+    created: u64,
+    model: &'a str,
+    system_fingerprint: &'static str,
+    choices: Vec<ChunkChoice<'a>>,
+    #[serde(skip_serializing_if = "ChunkUsage::is_absent")]
+    usage: ChunkUsage,
+}
+
+/// The `usage` field of a chunk, as OpenAI writes it: left out unless the
+/// request asked for the usage, then `null` in every chunk but the last.
+#[derive(Debug, Serialize)]
+#[serde(untagged)]
+enum ChunkUsage {
+    /// The request did not ask for the usage, so the field is left out.
+    Absent,
+    /// The usage comes in a later chunk. Written as `null`.
+    Pending,
+    /// The usage of the whole reply.
+    Counts(Usage),
+}
+
+impl ChunkUsage {
+    const fn is_absent(&self) -> bool {
+        matches!(self, ChunkUsage::Absent)
+    }
+}
+
+impl<'a> ChatChunk<'a> {
+    /// A chunk of the reply `id` from `model` that holds `delta`, and the
+    /// finish reason when the chunk is the one that ends the choice.
+    /// `with_usage` says whether the request asked for the usage.
+    pub(crate) fn new(
+        id: &'a str,
+        model: &'a str,
+        delta: Delta<'a>,
+        finish_reason: Option<FinishReason>,
+        with_usage: bool,
+    ) -> ChatChunk<'a> {
+        ChatChunk {
+            id,
+            object: "chat.completion.chunk",
+            created: CREATED,
+            model,
+            system_fingerprint: FINGERPRINT,
+            choices: vec![ChunkChoice {
+                index: 0,
+                delta,
+                logprobs: None,
+                finish_reason,
+            }],
+            usage: if with_usage {
+                ChunkUsage::Pending
+            } else {
+                ChunkUsage::Absent
+            },
+        }
+    }
+
+    /// The chunk that ends a stream whose request asked for the usage: no
+    /// choices, and the usage of the whole reply.
+    pub(crate) fn usage(id: &'a str, model: &'a str, usage: Usage) -> ChatChunk<'a> {
+        ChatChunk {
+            id,
+            object: "chat.completion.chunk",
+            created: CREATED,
+            model,
+            system_fingerprint: FINGERPRINT,
+            choices: Vec::new(),
+            usage: ChunkUsage::Counts(usage),
+        }
+    }
+}
+
+/// The one choice of a chunk. `finish_reason` is `null` until the chunk that
+/// ends the choice.
+#[derive(Debug, Serialize)]
+struct ChunkChoice<'a> {
+    index: u32,
+    delta: Delta<'a>,
+    logprobs: Option<()>,
+    finish_reason: Option<FinishReason>,
+}
+
+/// What one chunk adds to the message.
+#[derive(Debug, Serialize)]
+#[serde(untagged)]
+pub(crate) enum Delta<'a> {
+    /// The first chunk: the role, and empty content to add to.
+    Role {
+        /// Always `assistant`.
+        role: &'static str,
+        /// Always empty.
+        content: &'static str,
+        /// Always `null`.
+        refusal: Option<()>,
+    },
+    /// One token of the text.
+    Content {
+        /// The token.
+        content: &'a str,
+    },
+    /// Nothing: the chunk only ends the choice.
+    Empty {},
+}
+
+impl Delta<'_> {
+    /// The delta of the first chunk of every stream.
+    pub(crate) const fn role() -> Delta<'static> {
+        Delta::Role {
+            role: "assistant",
+            content: "",
+            refusal: None,
+        }
+    }
 }
 
 /// The token counts of a request and its reply.

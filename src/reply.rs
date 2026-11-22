@@ -9,14 +9,20 @@ use crate::brain;
 use crate::tokens;
 use crate::wire::{ChatCompletion, ChatRequest, FinishReason, Message, Model, Role, Usage};
 
-/// What the server answers to one chat request, before it is written out.
+/// What the server answers to one chat request, before it is written out as
+/// one JSON object or as a stream.
 #[derive(Debug, PartialEq, Eq)]
 pub(crate) struct Reply {
-    id: String,
-    model: String,
-    text: String,
-    finish: FinishReason,
-    usage: Usage,
+    /// The id of the completion, the same in every chunk of a stream.
+    pub(crate) id: String,
+    /// The model name, as the request wrote it.
+    pub(crate) model: String,
+    /// The text of the assistant message, already shortened.
+    pub(crate) text: String,
+    /// Why the text ends where it does.
+    pub(crate) finish: FinishReason,
+    /// The token counts of the prompt and of `text`.
+    pub(crate) usage: Usage,
 }
 
 impl Reply {

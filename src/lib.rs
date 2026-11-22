@@ -22,6 +22,7 @@
 mod api;
 mod brain;
 mod reply;
+mod sse;
 mod tokens;
 mod wire;
 

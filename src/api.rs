@@ -8,10 +8,8 @@ use axum::response::{IntoResponse, Response};
 use axum::routing::{get, post};
 use axum::{Json, Router};
 
-use crate::reply;
-use crate::wire::{
-    ChatCompletion, ChatRequest, ErrorBody, Model, ModelList, ModelObject, RequestError,
-};
+use crate::wire::{ChatRequest, ErrorBody, Model, ModelList, ModelObject, RequestError};
+use crate::{reply, sse};
 
 /// The largest request body the server reads, in bytes. A test of a long
 /// conversation sends megabytes of history, so the limit sits far above the
@@ -78,6 +76,17 @@ impl ApiError {
         }
     }
 
+    /// The server could not write its own reply. This is a bug in the
+    /// server, and the caller's request is not at fault.
+    fn internal(error: &serde_json::Error) -> ApiError {
+        ApiError {
+            status: StatusCode::INTERNAL_SERVER_ERROR,
+            body: ErrorBody::server_error(format!(
+                "The server could not write its reply: {error}."
+            )),
+        }
+    }
+
     /// The body could not be read: it is larger than the limit, or the
     /// connection failed while it arrived.
     fn unreadable_body(rejection: &BytesRejection) -> ApiError {
@@ -120,17 +129,22 @@ async fn get_model(Path(id): Path<String>) -> Result<Json<ModelObject>, ApiError
         .ok_or_else(|| ApiError::model_not_found(&id))
 }
 
-/// Answers a chat request. The body is read as plain bytes, so that a body
-/// the server cannot parse gets the error envelope like every other failure.
-async fn chat_completions(
-    body: Result<Bytes, BytesRejection>,
-) -> Result<Json<ChatCompletion>, ApiError> {
+/// Answers a chat request, as one JSON object or as a stream. The body is
+/// read as plain bytes, so that a body the server cannot parse gets the
+/// error envelope like every other failure.
+async fn chat_completions(body: Result<Bytes, BytesRejection>) -> Result<Response, ApiError> {
     let body = body.map_err(|rejection| ApiError::unreadable_body(&rejection))?;
     let request = ChatRequest::parse(&body)?;
     let model =
         Model::from_id(&request.model).ok_or_else(|| ApiError::model_not_found(&request.model))?;
     let reply = reply::reply(&request, model, &body).await;
-    Ok(Json(reply.into_completion()))
+    if request.streams() {
+        let events = sse::events(&reply, request.includes_usage())
+            .map_err(|error| ApiError::internal(&error))?;
+        Ok(sse::response(events))
+    } else {
+        Ok(Json(reply.into_completion()).into_response())
+    }
 }
 
 async fn unknown_path(method: Method, uri: Uri) -> ApiError {

@@ -7,8 +7,10 @@ use async_openai::config::OpenAIConfig;
 use async_openai::error::OpenAIError;
 use async_openai::types::chat::{
     ChatCompletionRequestSystemMessageArgs, ChatCompletionRequestUserMessageArgs,
-    CreateChatCompletionRequest, CreateChatCompletionRequestArgs, FinishReason, Role,
+    ChatCompletionStreamOptions, CreateChatCompletionRequest, CreateChatCompletionRequestArgs,
+    FinishReason, Role,
 };
+use futures_util::StreamExt as _;
 
 use crate::support::{Server, client};
 
@@ -64,6 +66,49 @@ async fn a_typed_openai_client_reads_the_reply() {
         usage.total_tokens,
         usage.prompt_tokens + usage.completion_tokens
     );
+}
+
+#[tokio::test]
+async fn a_typed_openai_client_reads_the_stream_to_its_end() {
+    let server = Server::start().await;
+    let mut request = request("cheapseek", "Hi, I'm Sam.");
+    request.stream_options = Some(ChatCompletionStreamOptions {
+        include_usage: Some(true),
+        ..ChatCompletionStreamOptions::default()
+    });
+    let mut stream = openai(&server)
+        .chat()
+        .create_stream(request)
+        .await
+        .expect("the client opens the stream");
+
+    let mut text = String::new();
+    let mut finish = None;
+    let mut usage = None;
+    let mut chunks = 0;
+    while let Some(chunk) = stream.next().await {
+        let chunk = chunk.expect("the client reads the chunk");
+        chunks += 1;
+        assert_eq!(chunk.object, "chat.completion.chunk");
+        for choice in &chunk.choices {
+            if let Some(content) = &choice.delta.content {
+                text.push_str(content);
+            }
+            if choice.finish_reason.is_some() {
+                finish = choice.finish_reason;
+            }
+        }
+        if chunk.usage.is_some() {
+            usage = chunk.usage;
+        }
+    }
+
+    assert_eq!(text, "Nice to meet you, Sam. What can I help with?");
+    assert_eq!(finish, Some(FinishReason::Stop));
+    let usage = usage.expect("the last chunk holds the usage");
+    assert_eq!(usage.completion_tokens, 13);
+    // The role chunk, 13 tokens, the finish chunk, and the usage chunk.
+    assert_eq!(chunks, 16);
 }
 
 #[tokio::test]

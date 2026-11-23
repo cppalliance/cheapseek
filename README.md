@@ -73,7 +73,7 @@ The step downloads the executable of its release, compares it with the SHA-256 s
 - **`port`** is an input: the port to listen on. The default, `0`, takes a free port.
 - **`executable`** is an input: the path of a CheapSeek executable to start in place of the download, such as one the job built.
 - **Runners.** A release holds executables for Linux on x64, macOS on arm64 and Windows on x64, the systems of GitHub's `ubuntu-latest`, `macos-latest` and `windows-latest`. On another runner, build CheapSeek in the job and pass its path as `executable`.
-- **Versions.** `@v1` follows the newest 1.x release, and a release can change a reply. `@v1.0.0` or a commit hash keeps the replies fixed.
+- **Versions.** `@v1` follows the newest 1.x release, and a release can change a reply. A full version such as `@v1.1.0`, or a commit hash, keeps the replies fixed.
 
 ## Point a client at it
 

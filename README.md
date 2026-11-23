@@ -18,7 +18,7 @@ CheapSeek is a test server that speaks the OpenAI chat-completions API and answe
 
 Get the executable in one of three ways:
 
-- **Download it.** Each [release](https://github.com/cppalliance/cheapseek/releases) holds one file for Linux on x64, one for macOS on arm64 and one for Windows on x64, with their SHA-256 sums. The Linux file needs glibc 2.35 or newer, which Ubuntu 22.04 has. The Windows file holds its C runtime, so it starts on a machine without the Visual C++ runtime. On Linux and macOS, make the file executable with `chmod +x`.
+- **Download it.** Each [release](https://github.com/cppalliance/cheapseek/releases) holds one file for Linux on x64, one for macOS on arm64 and one for Windows on x64, with their SHA-256 sums and a page of third-party licenses. The Linux file needs glibc 2.35 or newer, which Ubuntu 22.04 has. The Windows file holds its C runtime, so it starts on a machine without the Visual C++ runtime. On Linux and macOS, make the file executable with `chmod +x`.
 - **Install it with cargo.** `cargo install --git https://github.com/cppalliance/cheapseek --locked` builds the executable in about three minutes and puts `cheapseek` among cargo's own executables. It needs Rust 1.99 or newer.
 - **Build it in a checkout.** `cargo build --release` leaves it at `target/release/cheapseek`.
 
@@ -338,6 +338,8 @@ CI runs these checks on every push, with the tests on Linux, macOS and Windows. 
 ## License and notices
 
 CheapSeek is under the Boost Software License 1.0. See [LICENSE](LICENSE).
+
+An executable also holds the code of about a hundred crates. Each release holds `THIRD-PARTY-LICENSES.html`, a page with the license of every one of them and the text of each license.
 
 A CheapSeek executable includes RustBot, which is under the Apache License 2.0:
 

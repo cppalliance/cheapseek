@@ -3,8 +3,9 @@ run-name: CheapSeek executables (${{ github.event_name == 'push' && github.ref_n
 
 # Builds the `cheapseek` executable for Linux, macOS and Windows, and holds
 # each one to the recorded replies. A vX.Y.Z tag then publishes the three
-# with SHA256SUMS as a GitHub release, starts the published files through
-# the action on all three systems, and moves the major tag to the release.
+# with SHA256SUMS and a page of third-party licenses as a GitHub release,
+# starts the published files through the action on all three systems, and
+# moves the major tag to the release.
 # A job that fails stops the jobs after it.
 #
 # What starts a run:
@@ -141,12 +142,48 @@ jobs:
           if-no-files-found: error
           retention-days: 7
 
+  # An executable holds the code of about a hundred crates, and the license
+  # of each one asks that its text goes where the code goes. This job writes
+  # one page with the license of every such crate and the text of each
+  # license. `about.toml` lists the licenses a crate may be under, and a
+  # crate under another one fails the job.
+  licenses:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - uses: taiki-e/install-action@3f74d7c16a4242f1c95561e98edc25d36adb4375 # v2
+        with:
+          tool: cargo-about
+
+      - name: Write the page of licenses
+        shell: bash
+        run: |
+          set -euo pipefail
+          page="$RUNNER_TEMP/THIRD-PARTY-LICENSES.html"
+          cargo about generate --locked --fail about.hbs --output-file "$page"
+          # The page has to name the chat bot and hold the text of its
+          # license, or the generator has stopped doing its work.
+          grep -q -F '>rustbot ' "$page" || { echo "the page does not name rustbot"; exit 1; }
+          grep -q -F 'Apache License' "$page" ||
+            { echo "the page holds no text of the Apache License"; exit 1; }
+          ls -l "$page"
+
+      - name: Upload the page of licenses
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: licenses
+          path: ${{ runner.temp }}/THIRD-PARTY-LICENSES.html
+          if-no-files-found: error
+          retention-days: 7
+
   # One repository publishes. A copy that is not a fork runs the builds for
   # a tag pushed to it, and without this condition it would publish a
   # release of its own, which the action never downloads. After a rename of
   # the repository, the name here has to follow, or a tag publishes nothing.
   publish:
-    needs: build
+    needs: [build, licenses]
     if: ${{ github.repository == 'cppalliance/cheapseek' && github.event_name == 'push' }}
     runs-on: ubuntu-latest
     timeout-minutes: 10
@@ -159,6 +196,12 @@ jobs:
           pattern: executable-*
           path: dist
           merge-multiple: true
+
+      - name: Download the page of licenses
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: licenses
+          path: dist
 
       - name: Write SHA256SUMS
         shell: bash
@@ -177,7 +220,8 @@ jobs:
           found=$(find . -maxdepth 1 -name 'cheapseek-*' | wc -l)
           [ "$found" -eq "${#executables[@]}" ] ||
             { echo "expected ${#executables[@]} executables, found $found"; ls -la; exit 1; }
-          sha256sum "${executables[@]}" > SHA256SUMS
+          [ -s THIRD-PARTY-LICENSES.html ] || { echo "the page of licenses is missing"; ls -la; exit 1; }
+          sha256sum "${executables[@]}" THIRD-PARTY-LICENSES.html > SHA256SUMS
           sha256sum --check SHA256SUMS
           {
             echo "### CheapSeek $GITHUB_REF_NAME"
@@ -198,6 +242,7 @@ jobs:
           files: |
             dist/cheapseek-*
             dist/SHA256SUMS
+            dist/THIRD-PARTY-LICENSES.html
 
   # The published release, the way a user's job gets it: the action at the
   # tag downloads the executable for its runner, checks the sum, and starts

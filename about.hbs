@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="utf-8">
+    <title>CheapSeek: third-party licenses</title>
+    <style>
+        @media (prefers-color-scheme: dark) {
+            body {
+                background: #333;
+                color: white;
+            }
+            a {
+                color: skyblue;
+            }
+        }
+        .container {
+            font-family: sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+        }
+        .licenses-list {
+            list-style-type: none;
+            margin: 0;
+            padding: 0;
+        }
+        .license-used-by {
+            margin-top: -10px;
+        }
+        .license-text {
+            max-height: 200px;
+            overflow-y: scroll;
+            white-space: pre-wrap;
+        }
+    </style>
+</head>
+
+<body>
+    <main class="container">
+        <h1>CheapSeek: third-party licenses</h1>
+        <p>
+            <a href="https://github.com/cppalliance/cheapseek">CheapSeek</a> is under the Boost Software License 1.0.
+            A CheapSeek executable also holds the code of the crates below, each under its own license.
+            This page names the license of every crate and gives the text of each license.
+        </p>
+        <p>
+            The chat bot inside CheapSeek is <a href="https://github.com/cppalliance/rustbot">RustBot</a>,
+            a port of <a href="https://github.com/huggingface/pybot">PyBot</a> by Hugging Face.
+            Both are under the Apache License 2.0.
+            An executable also holds the Rust standard library, which is under the MIT License or the Apache License 2.0.
+        </p>
+
+        <h2>The licenses</h2>
+        <ul class="licenses-overview">
+            {{#each overview}}
+            <li><a href="#{{id}}">{{name}}</a> ({{count}})</li>
+            {{/each}}
+        </ul>
+
+        <h2>The crates and the text of each license</h2>
+        <ul class="licenses-list">
+            {{#each licenses}}
+            <li class="license">
+                <h3 id="{{id}}">{{name}}</h3>
+                <h4>Used by:</h4>
+                <ul class="license-used-by">
+                    {{#each used_by}}
+                    <li><a href="{{#if crate.repository}}{{crate.repository}}{{else}}https://crates.io/crates/{{crate.name}}{{/if}}">{{crate.name}} {{crate.version}}</a></li>
+                    {{/each}}
+                </ul>
+                <pre class="license-text">{{text}}</pre>
+            </li>
+            {{/each}}
+        </ul>
+    </main>
+</body>
+
+</html>

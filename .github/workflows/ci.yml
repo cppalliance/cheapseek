@@ -193,10 +193,18 @@ jobs:
 
       - uses: taiki-e/install-action@3f74d7c16a4242f1c95561e98edc25d36adb4375 # v2
         with:
-          tool: cargo-deny
+          tool: cargo-deny,cargo-about
 
       - name: cargo deny
         run: cargo deny check
+
+      # Each release holds a page with the licenses of the crates in its
+      # executables, and `release.yml` makes the page with this command. A
+      # crate under a license that `about.toml` does not list fails here, on
+      # the push that brings the crate in.
+      - name: cargo about
+        shell: bash
+        run: cargo about generate --locked --fail about.hbs --output-file "$RUNNER_TEMP/THIRD-PARTY-LICENSES.html"
 
   # One required status check for branch protection: it fails when any job
   # fails or is cancelled, so a cancelled job cannot read as green. `needs:`

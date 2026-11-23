@@ -25,6 +25,7 @@ CheapSeek is a test server that speaks the OpenAI chat-completions API and answe
 - `action.yml` and `action/start.sh` are the GitHub Action. The script picks the executable for the runner, downloads it from the release, compares its SHA-256 sum, starts it, and gives the base URL to the job.
 - `action/check.sh` compares the replies of a running server with the recorded replies in `action/check/`.
 - `.github/workflows/release.yml` builds, checks and publishes the executables of a release, and moves the major tag.
+- `about.toml` and `about.hbs` make `THIRD-PARTY-LICENSES.html`, the page of licenses that each release holds, with `cargo about generate`.
 
 ## The bot
 
@@ -44,6 +45,7 @@ CheapSeek is a test server that speaks the OpenAI chat-completions API and answe
 - Maps and sets are B-tree based, and the code reads no clock. `clippy.toml` bans the hash collections and the clock reads, because a hash seed or a clock value in a reply would break the rule above.
 - JSON objects are written with sorted keys. `deny.toml` bans the `preserve_order` feature of `serde_json`, which a dependency could otherwise turn on for the whole build.
 - Confirm that a crate is the intended, existing package before adding it to `Cargo.toml`.
+- `deny.toml` and `about.toml` list the same licenses. A new crate under a license outside the lists fails the `supply-chain` job. A license that the project accepts goes into both lists.
 
 ## Tests
 
@@ -72,7 +74,7 @@ CheapSeek is a test server that speaks the OpenAI chat-completions API and answe
 - **A manual run of the Release workflow builds and checks without publishing.** Run it before a tag when the workflow or the action changed.
 - **A release builds from an empty cache.** `release.yml` restores no cache, so every part of a released executable is compiled in the job that uploads it. Keep cache steps out of that workflow.
 - **A new major version** changes the reference `cppalliance/cheapseek@v1` in the `proof` job of `release.yml` and in `README.md`.
-- **A new system** is one row in the `build` matrix of `release.yml`, one name in its `publish` job, one line in `action/start.sh`, and one sentence in `README.md`.
+- **A new system** is one row in the `build` matrix of `release.yml`, one name in its `publish` job, one line in `action/start.sh`, one entry in the `targets` of `about.toml`, and one sentence in `README.md`.
 
 ## Plans
 

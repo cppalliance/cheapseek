@@ -40,6 +40,26 @@ async fn ctrl_c_ends_the_executable_with_success_and_no_more_output() {
     assert_eq!(rest, Vec::<String>::new());
 }
 
+/// A Windows executable names each library it loads when it starts. One
+/// that names the Visual C++ runtime fails to start on a machine without
+/// that runtime, so the build puts the runtime inside the executable.
+#[cfg(windows)]
+#[test]
+fn the_windows_executable_names_no_c_runtime_library() {
+    let executable = std::fs::read(env!("CARGO_BIN_EXE_cheapseek"))
+        .expect("the built executable")
+        .to_ascii_lowercase();
+    // The two families of file names that a build without the setting
+    // holds: the Visual C++ runtime, and the parts of the Universal C
+    // Runtime.
+    for library in ["vcruntime140", "api-ms-win-crt-"] {
+        let named = executable
+            .windows(library.len())
+            .any(|window| window == library.as_bytes());
+        assert!(!named, "the executable names {library}");
+    }
+}
+
 #[tokio::test]
 async fn the_warm_up_changes_no_reply() {
     let body = r#"{"model":"cheapseek","messages":[{"role":"user","content":"Hi, I'm Sam."}]}"#;

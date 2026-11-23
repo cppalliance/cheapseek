@@ -4,6 +4,14 @@
 [build]
 rustflags = ["-D", "warnings"]
 
+# On Windows the executable holds its C runtime, so a downloaded executable
+# starts on a machine without the Visual C++ runtime installed. The tests run
+# with the same setting, so they test what a release ships. Cargo takes the
+# flags of a matching target table in place of the `[build]` flags, so the
+# table repeats them.
+[target.'cfg(all(windows, target_env = "msvc"))']
+rustflags = ["-D", "warnings", "-C", "target-feature=+crt-static"]
+
 # Clippy appends a docs-link line to every diagnostic; the lint name already
 # identifies it.
 [env]

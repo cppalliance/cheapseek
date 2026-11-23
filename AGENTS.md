@@ -69,6 +69,7 @@ CheapSeek is a test server that speaks the OpenAI chat-completions API and answe
 - **A version tag is never moved and never used again.** A release that went wrong gets a fix on `master` and the next version.
 - **`release.yml` alone moves the major tag `v1`,** after the published files have worked through the action on three systems. Never push `v1` by hand.
 - **A manual run of the Release workflow builds and checks without publishing.** Run it before a tag when the workflow or the action changed.
+- **A release builds from an empty cache.** `release.yml` restores no cache, so every part of a released executable is compiled in the job that uploads it. Keep cache steps out of that workflow.
 - **A new major version** changes the reference `cppalliance/cheapseek@v1` in the `proof` job of `release.yml` and in `README.md`.
 - **A new system** is one row in the `build` matrix of `release.yml`, one name in its `publish` job, one line in `action/start.sh`, and one sentence in `README.md`.
 

@@ -36,8 +36,8 @@ env:
 jobs:
   build:
     name: build (${{ matrix.triple }})
-    # A build from an empty cache takes a few minutes. A hung one should not
-    # hold the run for GitHub's 6-hour default.
+    # A build takes a few minutes. A hung one should not hold the run for
+    # GitHub's 6-hour default.
     timeout-minutes: 60
     strategy:
       fail-fast: false
@@ -88,9 +88,9 @@ jobs:
           [ "$host" = "$TRIPLE" ] ||
             { echo "this runner builds for $host, and the executable is named for $TRIPLE"; exit 1; }
 
-      - name: Cache cargo
-        uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2
-
+      # This workflow restores no cache. Every part of a released executable
+      # is compiled in this job, from the sources that Cargo.lock names, and
+      # a manual run builds the same way as the run of a tag.
       - name: Build
         run: cargo build --release --locked
 

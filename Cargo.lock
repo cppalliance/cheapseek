@@ -1506,7 +1506,7 @@ dependencies = [
 [[package]]
 name = "rustbot"
 version = "0.1.0"
-source = "git+https://github.com/Shekswess/rustbot?rev=fb89123ebde58ab12eca349fbf902dd640f5c3bf#fb89123ebde58ab12eca349fbf902dd640f5c3bf"
+source = "git+https://github.com/cppalliance/rustbot?rev=fb89123ebde58ab12eca349fbf902dd640f5c3bf#fb89123ebde58ab12eca349fbf902dd640f5c3bf"
 dependencies = [
  "clap",
  "fancy-regex 0.18.0",

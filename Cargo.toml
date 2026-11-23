@@ -27,12 +27,14 @@ clap = { version = "4.6", features = ["derive"] }
 # Turns the events of a streamed reply into a response body. It is in the
 # tree already, through axum.
 futures-util = { version = "0.3", default-features = false }
-# The chat brain: a Rust port of PyBot. It lives on GitHub only, and the
-# commit is pinned so that a reply cannot change under the tests.
+# The chat brain: a Rust port of PyBot. It lives on GitHub only, and it is
+# built from the C++ Alliance fork, so that the source stays where this
+# project can reach it. The commit is pinned so that a reply cannot change
+# under the tests.
 # `Cargo.lock` keeps `regex`, `regex-automata`, `regex-syntax` and `smallvec`
 # at the versions that RustBot's own lock file names, so the bot runs on the
 # releases it was tested with. A `cargo update` has to pin them again.
-rustbot = { git = "https://github.com/Shekswess/rustbot", rev = "fb89123ebde58ab12eca349fbf902dd640f5c3bf" }
+rustbot = { git = "https://github.com/cppalliance/rustbot", rev = "fb89123ebde58ab12eca349fbf902dd640f5c3bf" }
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 # Names the request field whose value has the wrong shape, for the error

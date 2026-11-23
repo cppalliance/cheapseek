@@ -51,9 +51,10 @@ crate = "serde_json"
 deny = ["preserve_order"]
 
 [sources]
-# crates.io is the only registry. The one git source is RustBot, the chat
-# brain, which lives on GitHub only; `Cargo.toml` pins its commit.
+# crates.io is the only registry. The one git source is the C++ Alliance
+# fork of RustBot, the chat brain, which lives on GitHub only; `Cargo.toml`
+# pins its commit.
 unknown-registry = "deny"
 unknown-git = "deny"
 allow-registry = ["https://github.com/rust-lang/crates.io-index"]
-allow-git = ["https://github.com/Shekswess/rustbot"]
+allow-git = ["https://github.com/cppalliance/rustbot"]

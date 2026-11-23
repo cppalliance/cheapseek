@@ -28,7 +28,7 @@ CheapSeek is a test server that speaks the OpenAI chat-completions API and answe
 
 ## The bot
 
-- **RustBot is pinned.** `Cargo.toml` names one commit of it, and `Cargo.lock` keeps `regex`, `regex-automata`, `regex-syntax` and `smallvec` at the versions that RustBot's own lock file names. After a `cargo update`, pin those four again with `cargo update -p <name> --precise <version>`.
+- **RustBot is pinned, and it is built from the fork `cppalliance/rustbot`.** `Cargo.toml` names one commit of the fork, and `Cargo.lock` keeps `regex`, `regex-automata`, `regex-syntax` and `smallvec` at the versions that RustBot's own lock file names. After a `cargo update`, pin those four again with `cargo update -p <name> --precise <version>`.
 - **The recorded replies are the specification.** `src/brain-tests.rs` and `tests/it/conversations.rs` hold replies the bot gave, word for word, and CI compares them on three systems. Change one only for an intended change, such as a new pin, in the same commit, after reading its diff. Never record again to make a failing test pass.
 - **Test conversations stay clear of dates and sums.** Those two kinds of answer follow the host clock and the system's math library.
 - **Every profile unwinds on panic.** The server catches a panic inside the bot and answers with the bot's fallback line. `panic = "abort"` would end the process there.

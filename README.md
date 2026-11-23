@@ -341,5 +341,5 @@ CheapSeek is under the Boost Software License 1.0. See [LICENSE](LICENSE).
 
 A CheapSeek executable includes RustBot, which is under the Apache License 2.0:
 
-- [RustBot](https://github.com/Shekswess/rustbot), a native Rust port of PyBot's rule-based conversation engine, at commit `fb89123`. CheapSeek links it unchanged, as a dependency.
+- [RustBot](https://github.com/Shekswess/rustbot), a native Rust port of PyBot's rule-based conversation engine. CheapSeek builds it from the [C++ Alliance fork](https://github.com/cppalliance/rustbot) at commit `fb89123`, which is the original, unchanged.
 - [PyBot](https://github.com/huggingface/pybot), by Hugging Face, the chatbot that RustBot ports. Apache License 2.0.

@@ -59,6 +59,7 @@ CheapSeek is a test server that speaks the OpenAI chat-completions API and answe
 - From the repository root: `cargo fmt --check`, `cargo clippy --all-targets --locked`, `cargo test --locked`, `cargo doc --no-deps --locked` with `RUSTDOCFLAGS` set to `-D warnings`, and `cargo deny check`.
 - CI runs all of these on every pull request and on `master`, in `.github/workflows/ci.yml`. The tests run on Ubuntu, Windows and macOS. A job added there also goes into the `needs` list of `ci-green`, the one check to require.
 - CI also runs `shellcheck` on the scripts in `action/`, and on each of the three systems it starts a server through the action and runs `action/check.sh`.
+- The `coverage` job of CI runs `cargo llvm-cov --locked` and fails below the floor in `ci.yml`, a whole percent of the lines of this package. The same command gives the number on a developer machine. Raise the floor when the tests reach more lines, and never lower it to let a change in.
 - Push `master` when the owner has said to push. The next section holds the rules for tags.
 
 ## Releases

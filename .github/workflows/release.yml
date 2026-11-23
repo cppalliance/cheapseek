@@ -106,6 +106,19 @@ jobs:
           cp "$BUILT" "$RUNNER_TEMP/dist/$ASSET"
           ls -l "$RUNNER_TEMP/dist"
 
+      # The release profile strips the symbol table, which was a quarter of
+      # the Linux file. A profile that loses the setting fails here.
+      - name: Check that the executable holds no symbol table
+        if: runner.os == 'Linux'
+        shell: bash
+        run: |
+          set -euo pipefail
+          sections=$(readelf --section-headers --wide "$RUNNER_TEMP/dist/$ASSET")
+          if grep -q -F '.symtab' <<< "$sections"; then
+            echo "$ASSET still has a .symtab section"
+            exit 1
+          fi
+
       - name: Start the executable through the action
         id: cheapseek
         uses: ./

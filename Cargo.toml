@@ -98,6 +98,11 @@ assert_is_empty = "allow"
 # panic inside the bot and answers with a fallback line, and a profile that
 # aborts on panic would end the process there.
 
+# A release executable holds no symbol table. In the Linux executable of
+# release 1.0.0 the tables were 24 of 87 MiB, and only a debugger reads them.
+[profile.release]
+strip = true
+
 # The bot is a third of a million lines of rules. Unoptimized it takes
 # seconds per reply, and the tests run it, so the dev profile optimizes every
 # dependency.

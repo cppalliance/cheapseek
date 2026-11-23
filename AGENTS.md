@@ -72,7 +72,8 @@ CheapSeek is a test server that speaks the OpenAI chat-completions API and answe
 
 ## Plans
 
-- **A plan runs from its copy in `plan/`.** Before the first step, copy the approved plan verbatim to `plan/YYYY-MM-DD-N-words.plan.md`: the date the run starts, `N` the next unused number for that date starting at 1, and one to four kebab-case words from the title. The copy is the first commit of the plan.
+- **A plan runs from its copy in `plan/`.** Before the first step, copy the approved plan to `plan/YYYY-MM-DD-N-words.plan.md`: the date the run starts, `N` the next unused number for that date starting at 1, and one to four kebab-case words from the title. The copy is the first commit of the plan.
+- **The copy is verbatim but for the paths of the owner's machine,** which lead nowhere for a reader on GitHub. A link to a file of this repository becomes a relative link. A link to any other file on the machine becomes the text of the link. A bare path becomes the name of its file or folder.
 - **Each commit of a plan names the copy.** The last line of the message is `Plan: /plan/` followed by the file name of the copy.
 - **The last commit of a plan records what the build found.** The copy gains a section with the result and with each point where the build differs from the plan.
 

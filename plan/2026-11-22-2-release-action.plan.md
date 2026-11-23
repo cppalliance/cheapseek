@@ -31,7 +31,7 @@ isProject: false
 ## Where this starts
 
 - `master` is at `2d5b65c` and equals `origin/master`. CI was green on `ad36dc5`. The run for `2d5b65c` (README and image only) is unchecked, so the first step reads it.
-- The version is `0.1.0`. The repo has no tags and no releases, and [AGENTS.md](c:\Users\Vinnie\cursor\cheapseek\AGENTS.md) says "Never push a tag".
+- The version is `0.1.0`. The repo has no tags and no releases, and [AGENTS.md](../AGENTS.md) says "Never push a tag".
 - RustBot upstream (`Shekswess/rustbot`) has no issues yet. `fb89123`, the commit CheapSeek pins, is still its newest commit.
 - Approving this plan is your word to post the issue from your GitHub account, to push `master` three times, and to push the one tag `v1.0.0`.
 
@@ -91,7 +91,7 @@ A user's workflow gets this:
 
 ### The release workflow
 
-`.github/workflows/release.yml` (new) follows the shape of [Pedagogue's release.yml](c:\Users\Vinnie\cursor\pedagogue\.github\workflows\release.yml): a `vX.Y.Z` tag publishes, and a manual run builds and checks without publishing.
+`.github/workflows/release.yml` (new) follows the shape of Pedagogue's release.yml: a `vX.Y.Z` tag publishes, and a manual run builds and checks without publishing.
 
 ```mermaid
 flowchart LR
@@ -110,14 +110,14 @@ flowchart LR
 
 ### CI, docs and version
 
-- [ci.yml](c:\Users\Vinnie\cursor\cheapseek\.github\workflows\ci.yml): the `test` job, after `cargo test`, copies the built executable to `$RUNNER_TEMP`, starts it with `uses: ./` and the `executable` input, and runs `check.sh`. So the start script is tested on three systems on every push, with no release needed. The `fmt` job also runs `shellcheck action/*.sh`. Every `actions/checkout@v4` becomes `@v7`, which ends the Node 20 warning.
-- [README.md](c:\Users\Vinnie\cursor\cheapseek\README.md): a new section "Use it in GitHub Actions" after "Run" (the snippet above, the inputs and output, the three systems, and that `@v1` moves with each 1.x release while `@v1.0.0` or a commit hash keeps replies fixed). "Run" gains the two ways to get an executable on your own machine: the releases page, and `cargo install --git https://github.com/cppalliance/cheapseek --locked`.
-- [AGENTS.md](c:\Users\Vinnie\cursor\cheapseek\AGENTS.md): "Never push a tag" becomes a short "Releases" section. The version lives in `Cargo.toml`. A release is the tag `vX.Y.Z` on a green commit of `master`, pushed when the owner has said to release. A version tag is never moved or reused. `release.yml` alone moves `v1`. "Where each decision lives" gains the action files and the release workflow.
-- [Cargo.toml](c:\Users\Vinnie\cursor\cheapseek\Cargo.toml) and `Cargo.lock`: version `1.0.0`. No Rust source changes.
+- [ci.yml](../.github/workflows/ci.yml): the `test` job, after `cargo test`, copies the built executable to `$RUNNER_TEMP`, starts it with `uses: ./` and the `executable` input, and runs `check.sh`. So the start script is tested on three systems on every push, with no release needed. The `fmt` job also runs `shellcheck action/*.sh`. Every `actions/checkout@v4` becomes `@v7`, which ends the Node 20 warning.
+- [README.md](../README.md): a new section "Use it in GitHub Actions" after "Run" (the snippet above, the inputs and output, the three systems, and that `@v1` moves with each 1.x release while `@v1.0.0` or a commit hash keeps replies fixed). "Run" gains the two ways to get an executable on your own machine: the releases page, and `cargo install --git https://github.com/cppalliance/cheapseek --locked`.
+- [AGENTS.md](../AGENTS.md): "Never push a tag" becomes a short "Releases" section. The version lives in `Cargo.toml`. A release is the tag `vX.Y.Z` on a green commit of `master`, pushed when the owner has said to release. A version tag is never moved or reused. `release.yml` alone moves `v1`. "Where each decision lives" gains the action files and the release workflow.
+- [Cargo.toml](../Cargo.toml) and `Cargo.lock`: version `1.0.0`. No Rust source changes.
 
 ## The commits
 
-Each message follows [commit.mdc](c:\Users\Vinnie\cursor\.cursor\rules\commit.mdc) and ends with the `Plan:` line. The five checks of `AGENTS.md` run before each commit.
+Each message follows commit.mdc and ends with the `Plan:` line. The five checks of `AGENTS.md` run before each commit.
 
 - **Commit 0 - plan copy.** This plan, verbatim, as `plan/YYYY-MM-DD-N-release-action.plan.md` (the date the run starts, the next free number).
 - **Commit 1 - the action and its CI test.** `action.yml`, `action/start.sh`, `action/check.sh` with its recorded request and reply files, and the `ci.yml` changes. The recorded replies come from one run of the local server and are read before they are saved. Local test first: `start.sh` and `check.sh` in Git Bash against the release executable in scratch. Then **push 1**, and CI green on three systems is the test that the server outlives the step on each.

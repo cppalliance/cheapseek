@@ -21,6 +21,32 @@ const CONVERSATION: [(&str, &str); 4] = [
     ("What's my name?", "You're Sam."),
 ];
 
+/// Conversations whose last turn the bot answers from the date or the time
+/// of day, with the reply it gives at [`NOW`], recorded at seed 0.
+const DATED: [(&[&str], &str); 4] = [
+    (
+        &["When is the next full moon?"],
+        "The next full moon is on Tuesday 24 November, in 2 days. Full moons come round every 29.5 days, so the one after is about four weeks later; the moon looks biggest when it is low in the sky, which is an illusion rather than the moon being closer.",
+    ),
+    (
+        &["What should I plant in the garden this month?"],
+        "It's November, so here's what goes in. Plant garlic and broad beans if the ground is not frozen, mulch the empty beds, and order seed potatoes to chit after Christmas. Nothing else goes in outdoors.",
+    ),
+    (
+        &["I was born in 1990.", "How old am I?"],
+        "You told me you're 36.",
+    ),
+    (
+        &["What is the time difference in New York?"],
+        "New York is currently 5 hours behind the UK. It is 7pm in New York now, and 12am in the UK.",
+    ),
+];
+
+/// The turns of a conversation as the brain takes them.
+fn owned(turns: &[&str]) -> Vec<String> {
+    turns.iter().map(|turn| (*turn).to_owned()).collect()
+}
+
 /// The first `count` user turns of the recorded conversation.
 fn turns(count: usize) -> Vec<String> {
     CONVERSATION[..count]
@@ -51,6 +77,82 @@ fn a_four_turn_conversation_matches_the_recorded_replies_word_for_word() {
         let (user, recorded) = CONVERSATION[count - 1];
         assert_eq!(fresh(0, &turns(count)), recorded, "the reply to {user:?}");
     }
+}
+
+#[test]
+fn a_dated_question_gets_the_reply_of_the_fixed_time() {
+    for (turns, recorded) in DATED {
+        assert_eq!(fresh(0, &owned(turns)), recorded, "{turns:?}");
+    }
+}
+
+#[test]
+fn a_kept_bot_reads_the_same_time_as_a_new_bot() {
+    let brain = Brain::default();
+    let (turns, recorded) = DATED[2];
+    let turns = owned(turns);
+    // The first request leaves a bot that has read one turn. The second
+    // request runs the dated turn on that kept bot.
+    brain.replay(0, &turns[..1]);
+    assert_eq!(kept_reads(&brain), [1]);
+    assert_eq!(brain.replay(0, &turns), recorded);
+    assert_eq!(kept_reads(&brain), [2]);
+}
+
+#[test]
+fn a_brain_at_another_time_gives_the_replies_of_that_time() {
+    let later = Brain::at("2031-03-05T09:30:00+00:00[UTC]");
+    let moon = later.replay(0, &owned(DATED[0].0));
+    assert!(
+        moon.starts_with("The next full moon is on Saturday 8 March, in 3 days."),
+        "{moon}"
+    );
+    let garden = later.replay(0, &owned(DATED[1].0));
+    assert!(garden.starts_with("It's March"), "{garden}");
+    assert_eq!(
+        later.replay(0, &owned(DATED[2].0)),
+        "You told me you're 41."
+    );
+    // In March New York has moved its clocks forward and the UK has not.
+    let spring = Brain::at("2031-03-20T15:00:00+00:00[UTC]");
+    assert_eq!(
+        spring.replay(0, &owned(DATED[3].0)),
+        "New York is currently 4 hours behind the UK. It is 11am in New York now, and 3pm in the UK."
+    );
+}
+
+#[test]
+fn the_fixed_time_is_the_created_time_of_every_reply() {
+    let (date, time) = NOW.split_once('T').expect("a date, then a time");
+    assert_eq!(time, "00:00:00+00:00[UTC]", "midnight, in UTC");
+    let mut numbers = date.split('-').map(str::parse::<u64>);
+    let mut next = || {
+        numbers
+            .next()
+            .expect("a year, a month and a day")
+            .expect("a number")
+    };
+    let (year, month, day) = (next(), next(), next());
+
+    let leap = |year: u64| {
+        year.is_multiple_of(4) && (!year.is_multiple_of(100) || year.is_multiple_of(400))
+    };
+    let months = [31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31];
+    let mut days: u64 = (1970..year)
+        .map(|year| if leap(year) { 366 } else { 365 })
+        .sum();
+    for (index, length) in (1..month).zip(months) {
+        days += length + u64::from(index == 2 && leap(year));
+    }
+    days += day - 1;
+    assert_eq!(days * 24 * 60 * 60, crate::wire::CREATED);
+}
+
+#[test]
+fn a_time_that_the_bot_cannot_read_gives_the_fallback_line_and_keeps_no_bot() {
+    let brain = Brain::at("the day after tomorrow");
+    assert_eq!(brain.replay(0, &turns(1)), FALLBACK);
+    assert_eq!(kept_reads(&brain), Vec::<usize>::new());
 }
 
 #[test]

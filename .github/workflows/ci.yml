@@ -11,6 +11,11 @@ on:
     branches: [master]
   pull_request:
   workflow_dispatch:
+  # Once a week, on Monday morning. Some recorded replies hold a date, and
+  # the bot's clock is fixed, so a run on a later day shows that no reply
+  # follows the clock of the host.
+  schedule:
+    - cron: "17 5 * * 1"
 
 permissions:
   contents: read

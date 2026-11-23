@@ -9,6 +9,7 @@ mod chat;
 mod chat_errors;
 mod client;
 mod conversations;
+mod dates;
 mod echo;
 mod errors;
 mod json;

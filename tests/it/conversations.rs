@@ -5,7 +5,7 @@
 use futures_util::future::join_all;
 use serde_json::{Value, json};
 
-use crate::support::Server;
+use crate::support::{Server, content};
 
 /// The user turns of a conversation, and the reply the bot gives to each.
 const TURNS: [(&str, &str); 4] = [
@@ -36,15 +36,6 @@ fn request(count: usize) -> String {
         }
     }
     json!({ "model": "cheapseek", "messages": messages }).to_string()
-}
-
-/// The text of the reply in `bytes`.
-fn content(bytes: &[u8]) -> String {
-    let body: Value = serde_json::from_slice(bytes).expect("a JSON reply");
-    body["choices"][0]["message"]["content"]
-        .as_str()
-        .expect("text content")
-        .to_owned()
 }
 
 #[tokio::test]

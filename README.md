@@ -273,17 +273,16 @@ Every other field of the OpenAI API, such as `temperature`, is accepted and igno
 
 ## What is repeatable
 
-The same request body gets the same reply bytes: from one process or two, in one test run or the next, on Windows, Linux and macOS. CI checks recorded replies on all three.
+The same request body gets the same reply bytes: from one process or two, in one test run or the next, today or next year, on Windows, Linux and macOS. CI checks recorded replies on all three, on every push and once a week.
 
 - **Ids are hashes of the request body.** The completion id and each tool call id change when the request changes, and only then.
 - **`created` is a constant,** `1795305600`.
 - **`seed` is the one source of variation.** It picks the bot's wording where a rule has several, and the choices in generated JSON. A request without a seed uses seed 0.
 - **Line endings do not matter.** Each user turn is collapsed to one line before the bot reads it.
+- **The bot's clock stands still.** For the bot it is always the `created` time: 22 November 2026, midnight UTC. "When is the next full moon?" gets "Tuesday 24 November, in 2 days" on every day of every year. The clock and the time zone of the host change nothing.
+- **Time zones come from inside the executable.** "What is the time difference in New York?" gets the same reply on a host with old zone files, new ones, or none.
 
-Two things outside the request can still change a chat reply:
-
-- **The host clock and time zone.** The bot answers "how many days until Christmas" from today's date.
-- **The system's math library.** A few of the bot's sums, such as loan payoffs and distances, can differ in their last digit between systems.
+One thing outside the request can still change a chat reply: the system's math library. A few of the bot's sums, such as loan payoffs and distances, can differ in their last digit between systems.
 
 Tests that ask about other things get the same bytes everywhere. Tool calls, tool results, echo replies and generated JSON depend on the request alone.
 
@@ -341,5 +340,5 @@ CheapSeek is under the Boost Software License 1.0. See [LICENSE](LICENSE).
 
 A CheapSeek executable includes RustBot, which is under the Apache License 2.0:
 
-- [RustBot](https://github.com/Shekswess/rustbot), a native Rust port of PyBot's rule-based conversation engine. CheapSeek builds it from the [C++ Alliance fork](https://github.com/cppalliance/rustbot) at commit `fb89123`, which is the original, unchanged.
+- [RustBot](https://github.com/Shekswess/rustbot), a native Rust port of PyBot's rule-based conversation engine. CheapSeek builds it from the [C++ Alliance fork](https://github.com/cppalliance/rustbot) at commit `866aac5`. The fork changes two things in the original, and its README lists them: a caller can set the time that the bot reads, and time zones come from inside the executable.
 - [PyBot](https://github.com/huggingface/pybot), by Hugging Face, the chatbot that RustBot ports. Apache License 2.0.

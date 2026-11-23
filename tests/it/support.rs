@@ -105,7 +105,14 @@ pub(crate) struct Executable {
 impl Executable {
     /// Starts the executable with `arguments` and waits for its line.
     pub(crate) async fn start(arguments: &[&str]) -> Executable {
+        Executable::start_with(arguments, &[]).await
+    }
+
+    /// Starts the executable with `arguments` and with `variables` added to
+    /// its environment, and waits for its line.
+    pub(crate) async fn start_with(arguments: &[&str], variables: &[(&str, &str)]) -> Executable {
         let mut child = command(arguments)
+            .envs(variables.iter().copied())
             .stdout(Stdio::piped())
             .stderr(Stdio::inherit())
             .spawn()
@@ -177,6 +184,15 @@ pub(crate) async fn post_bytes(url: &str, body: &str) -> (u16, Vec<u8>) {
     let status = response.status().as_u16();
     let bytes = response.bytes().await.expect("a readable body");
     (status, bytes.to_vec())
+}
+
+/// The text of the reply in `bytes`, the body of a chat completion.
+pub(crate) fn content(bytes: &[u8]) -> String {
+    let body: Value = serde_json::from_slice(bytes).expect("a JSON reply");
+    body["choices"][0]["message"]["content"]
+        .as_str()
+        .expect("text content")
+        .to_owned()
 }
 
 async fn read_json(response: reqwest::Result<reqwest::Response>) -> (u16, Value) {

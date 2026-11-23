@@ -926,6 +926,7 @@ checksum = "175dc66334db3b9ab9985bf8b61cfed50dc16d20964bb47f9e479adcae984a7f"
 dependencies = [
  "jiff-core",
  "jiff-static",
+ "jiff-tzdb",
  "jiff-tzdb-platform",
  "log",
  "portable-atomic",
@@ -1506,7 +1507,7 @@ dependencies = [
 [[package]]
 name = "rustbot"
 version = "0.1.0"
-source = "git+https://github.com/cppalliance/rustbot?rev=fb89123ebde58ab12eca349fbf902dd640f5c3bf#fb89123ebde58ab12eca349fbf902dd640f5c3bf"
+source = "git+https://github.com/cppalliance/rustbot?rev=866aac5722d863d63ab8875074b85653b261986f#866aac5722d863d63ab8875074b85653b261986f"
 dependencies = [
  "clap",
  "fancy-regex 0.18.0",

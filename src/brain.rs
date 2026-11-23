@@ -11,6 +11,10 @@
 //! runs the new turns alone. A kept bot is in the state a fresh bot reaches
 //! by replay, so the reply is the same either way: the kept bots save time
 //! and change nothing.
+//!
+//! Some of the bot's rules read the date or the time of day. Every bot here
+//! is given one fixed time, so those replies also depend on the request
+//! alone.
 
 use std::panic::{self, AssertUnwindSafe};
 use std::sync::{Arc, Mutex, MutexGuard, PoisonError};
@@ -33,6 +37,14 @@ const FALLBACK: &str = "Hello!";
 /// room for a new one.
 const KEPT_BOTS: usize = 64;
 
+/// The time every bot reads in place of the system clock: the `created`
+/// time of every reply, written with its time zone.
+///
+/// With the system clock, the bot would answer "When is the next full moon?"
+/// differently from one day to the next. The time zone is UTC, so the date
+/// the bot sees is the same wherever the server runs.
+const NOW: &str = "2026-11-22T00:00:00+00:00[UTC]";
+
 // Each call moves its bot to a worker thread, so the bot must be `Send`.
 const _: () = {
     const fn assert_send<T: Send>() {}
@@ -40,9 +52,17 @@ const _: () = {
 };
 
 /// The chat bot, with the bots of the conversations it answered last.
-#[derive(Default)]
 pub(crate) struct Brain {
     kept: Mutex<Kept>,
+    /// The time each new bot is given. It never changes, so a kept bot and a
+    /// new bot read the same time.
+    now: &'static str,
+}
+
+impl Default for Brain {
+    fn default() -> Brain {
+        Brain::at(NOW)
+    }
 }
 
 /// The bots a brain keeps.
@@ -111,6 +131,16 @@ impl Conversation {
 }
 
 impl Brain {
+    /// A brain whose bots read `now` as the time. The server uses [`NOW`]
+    /// alone, and the tests use another time to show that the bots follow
+    /// it.
+    fn at(now: &'static str) -> Brain {
+        Brain {
+            kept: Mutex::default(),
+            now,
+        }
+    }
+
     /// Returns the bot's reply to the last of a conversation's user turns,
     /// on one line.
     ///
@@ -137,14 +167,13 @@ impl Brain {
         };
         let Conversation { seed, turns, key } = conversation;
         let total = turns.len();
+        let now = self.now;
         // The lock is free while the bot runs, so a slow turn of one
         // conversation never holds up another.
         let outcome = guard(move || {
             let mut bot = match bot {
                 Some(bot) => bot,
-                // The bot takes its seed as decimal digits and ignores the
-                // sign.
-                None => Box::new(Bot::new(Some(&seed.to_string())).ok()?),
+                None => Box::new(new_bot(seed, now)?),
             };
             let mut last = None;
             for turn in &turns[read..] {
@@ -225,6 +254,15 @@ impl Brain {
     fn lock(&self) -> MutexGuard<'_, Kept> {
         self.kept.lock().unwrap_or_else(PoisonError::into_inner)
     }
+}
+
+/// A bot for a new conversation, which reads `now` as the time. `None` when
+/// the bot refuses the seed or the time.
+fn new_bot(seed: i64, now: &str) -> Option<Bot> {
+    // The bot takes its seed as decimal digits and ignores the sign.
+    let mut bot = Bot::new(Some(&seed.to_string())).ok()?;
+    bot.set_now(Some(now)).ok()?;
+    Some(bot)
 }
 
 /// Runs the bot's work, and gives `None` when the work panics or has no

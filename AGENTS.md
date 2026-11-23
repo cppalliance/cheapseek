@@ -20,7 +20,7 @@ CheapSeek is a test server that speaks the OpenAI chat-completions API and answe
 - `src/tokens.rs` is the token rule. Usage, the token limit and the stream all count with it.
 - `src/sse.rs` writes a reply as a stream of server-sent events.
 - `src/wire.rs` holds the JSON shapes of requests and replies, and the checks of a request body.
-- `src/brain.rs` wraps RustBot: the one-line cut of a turn, the replay, the kept bots, and the guard against a panic.
+- `src/brain.rs` wraps RustBot: the one-line cut of a turn, the fixed time of the bots, the replay, the kept bots, and the guard against a panic.
 - `src/api.rs` holds the routes and turns each failure into the error envelope.
 - `action.yml` and `action/start.sh` are the GitHub Action. The script picks the executable for the runner, downloads it from the release, compares its SHA-256 sum, starts it, and gives the base URL to the job.
 - `action/check.sh` compares the replies of a running server with the recorded replies in `action/check/`.
@@ -30,7 +30,8 @@ CheapSeek is a test server that speaks the OpenAI chat-completions API and answe
 
 - **RustBot is pinned, and it is built from the fork `cppalliance/rustbot`.** `Cargo.toml` names one commit of the fork, and `Cargo.lock` keeps `regex`, `regex-automata`, `regex-syntax` and `smallvec` at the versions that RustBot's own lock file names. After a `cargo update`, pin those four again with `cargo update -p <name> --precise <version>`.
 - **The recorded replies are the specification.** `src/brain-tests.rs` and `tests/it/conversations.rs` hold replies the bot gave, word for word, and CI compares them on three systems. Change one only for an intended change, such as a new pin, in the same commit, after reading its diff. Never record again to make a failing test pass.
-- **Test conversations stay clear of dates and sums.** Those two kinds of answer follow the host clock and the system's math library.
+- **The bot's clock is fixed.** `src/brain.rs` gives every new bot the `created` time, and the fork reads time zones from inside the executable. A new pin of the fork must keep both changes: `tests/it/dates.rs` and `action/check/clock.request.json` hold replies that fit that one moment alone.
+- **Test conversations stay clear of sums.** A few of the bot's sums follow the system's math library. A question about a date is safe.
 - **Every profile unwinds on panic.** The server catches a panic inside the bot and answers with the bot's fallback line. `panic = "abort"` would end the process there.
 - **The bot is built twice on a developer machine.** `cargo build` and `cargo test` resolve different features for its dependencies, so each builds it once, at about two and a half minutes. The dev profile optimizes dependencies, because the unoptimized bot takes seconds per reply.
 
@@ -51,7 +52,7 @@ CheapSeek is a test server that speaks the OpenAI chat-completions API and answe
 - A test name is a sentence that states the behavior.
 - Two crates that this project does not write are the judges. `async-openai` reads every kind of reply the server makes, and `jsonschema` validates every value made from a schema. A new kind of reply gets a test through `async-openai`.
 - A test waits on the server's answer and never sleeps.
-- `action/check/` holds two requests and the whole reply to each, byte for byte. CI sends them to the debug build on three systems, and the release workflow sends them to each release build. A change to the bytes of a reply changes the recorded file in the same commit, after reading its diff.
+- `action/check/` holds three requests and the whole reply to each, byte for byte. CI sends them to the debug build on three systems, and the release workflow sends them to each release build. A change to the bytes of a reply changes the recorded file in the same commit, after reading its diff.
 
 ## Checks
 

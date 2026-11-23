@@ -1,6 +1,12 @@
 name: CheapSeek
 description: Start a CheapSeek server, a rule-based stand-in for an OpenAI model, for the rest of the job
 
+# What the listing in the GitHub Marketplace shows beside the name: a
+# cardboard box, like the one the mascot is made of.
+branding:
+  icon: package
+  color: orange
+
 # The server binds 127.0.0.1 and runs until the job ends, when the runner
 # stops it. Steps after this one reach it through the `base-url` output or
 # the `CHEAPSEEK_BASE_URL` environment variable.

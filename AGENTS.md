@@ -73,6 +73,7 @@ CheapSeek is a test server that speaks the OpenAI chat-completions API and answe
 - **`release.yml` alone moves the major tag `v1`,** after the published files have worked through the action on three systems. Never push `v1` by hand.
 - **A manual run of the Release workflow builds and checks without publishing.** Run it before a tag when the workflow or the action changed.
 - **A release builds from an empty cache.** `release.yml` restores no cache, so every part of a released executable is compiled in the job that uploads it. Keep cache steps out of that workflow.
+- **The owner lists each release in the GitHub Marketplace.** GitHub takes a listing from the web page of a release alone, from a person who is signed in: edit the release, tick "Publish this Action to the GitHub Marketplace", and update the release. A release that `release.yml` made is listed only after that tick. The listing reads the `name`, the `description` and the `branding` of `action.yml` at the tag.
 - **A new major version** changes the reference `cppalliance/cheapseek@v1` in the `proof` job of `release.yml` and in `README.md`.
 - **A new system** is one row in the `build` matrix of `release.yml`, one name in its `publish` job, one line in `action/start.sh`, one entry in the `targets` of `about.toml`, and one sentence in `README.md`.
 

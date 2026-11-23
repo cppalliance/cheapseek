@@ -159,6 +159,18 @@ impl Brain {
 
     /// The blocking body of [`Brain::reply`].
     fn replay(&self, seed: i64, turns: &[String]) -> String {
+        self.replay_with(seed, turns, |bot, line| bot.turn(line).reply)
+    }
+
+    /// The replay, with the step that runs one turn of a bot as `turn`. The
+    /// server always runs the bot's own turn. No input is known that makes
+    /// the bot panic, so a test passes a step that does.
+    fn replay_with(
+        &self,
+        seed: i64,
+        turns: &[String],
+        turn: impl Fn(&mut Bot, &str) -> String,
+    ) -> String {
         let conversation = Conversation::new(seed, turns);
         let (read, bot) = match self.find(&conversation) {
             Found::Reply(reply) => return reply,
@@ -176,8 +188,8 @@ impl Brain {
                 None => Box::new(new_bot(seed, now)?),
             };
             let mut last = None;
-            for turn in &turns[read..] {
-                last = Some(bot.turn(turn).reply);
+            for line in &turns[read..] {
+                last = Some(turn(&mut bot, line));
             }
             Some((bot, one_line(&last?)))
         });

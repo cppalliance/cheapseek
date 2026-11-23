@@ -394,6 +394,87 @@ fn what_the_work_holds_is_dropped_when_the_work_panics() {
     assert!(dropped.load(Ordering::SeqCst));
 }
 
+/// One turn of a bot that panics on the line `fatal`, as a rule of the bot
+/// would, and runs every other line as the bot does.
+fn turn_that_panics_on(fatal: &str) -> impl Fn(&mut Bot, &str) -> String {
+    move |bot, line| {
+        assert!(line != fatal, "a rule failed on {line:?}");
+        bot.turn(line).reply
+    }
+}
+
+#[test]
+fn a_bot_that_panics_on_its_first_turn_gives_the_fallback_line_and_is_not_kept() {
+    let brain = Brain::default();
+    let fatal = CONVERSATION[0].0;
+    assert_eq!(
+        brain.replay_with(0, &turns(1), turn_that_panics_on(fatal)),
+        FALLBACK
+    );
+    assert_eq!(kept_reads(&brain), Vec::<usize>::new());
+
+    // The same request, with a bot that works, gets the recorded reply.
+    assert_eq!(brain.replay(0, &turns(1)), CONVERSATION[0].1);
+    assert_eq!(kept_reads(&brain), [1]);
+}
+
+#[test]
+fn a_kept_bot_that_panics_is_dropped_and_the_other_bots_stay() {
+    let brain = Brain::default();
+    let other = owned(DATED[1].0);
+    let other_reply = brain.replay(0, &other);
+    assert_eq!(other_reply, DATED[1].1);
+    assert_eq!(brain.replay(0, &turns(2)), CONVERSATION[1].1);
+    assert_eq!(kept_reads(&brain), [1, 2]);
+
+    // The third turn runs on the kept bot of the first two, and it panics
+    // after the bot was taken out of the list.
+    let fatal = CONVERSATION[2].0;
+    assert_eq!(
+        brain.replay_with(0, &turns(3), turn_that_panics_on(fatal)),
+        FALLBACK
+    );
+    assert_eq!(kept_reads(&brain), [1], "the bot that panicked is gone");
+
+    // The fallback line was not kept as the reply of that conversation: the
+    // same request now replays all three turns on a new bot.
+    assert_eq!(brain.replay(0, &turns(3)), CONVERSATION[2].1);
+    assert_eq!(kept_reads(&brain), [1, 3]);
+
+    // The other conversation still has its bot and its reply.
+    assert!(matches!(
+        brain.find(&Conversation::new(0, &other)),
+        Found::Reply(reply) if reply == other_reply
+    ));
+}
+
+#[test]
+fn a_panic_in_one_conversation_leaves_a_request_at_the_same_time_alone() {
+    let brain = Arc::new(Brain::default());
+    let workers: Vec<_> = (0..8)
+        .map(|index| {
+            let brain = Arc::clone(&brain);
+            std::thread::spawn(move || {
+                if index % 2 == 0 {
+                    let fatal = CONVERSATION[1].0;
+                    brain.replay_with(1, &turns(2), turn_that_panics_on(fatal))
+                } else {
+                    brain.replay(0, &turns(4))
+                }
+            })
+        })
+        .collect();
+    for (index, worker) in workers.into_iter().enumerate() {
+        let reply = worker.join().expect("the replay catches the panic");
+        let expected = if index % 2 == 0 {
+            FALLBACK
+        } else {
+            CONVERSATION[3].1
+        };
+        assert_eq!(reply, expected);
+    }
+}
+
 #[tokio::test]
 async fn the_async_reply_is_the_replay() {
     let brain = Arc::new(Brain::default());

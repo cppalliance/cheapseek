@@ -55,7 +55,7 @@ todos:
     status: completed
   - id: marketplace
     content: "Final step: give the owner the link to the v1.1.0 release and the four clicks that publish it to the GitHub Marketplace, wait for the owner's word, then verify that the listing page answers and shows v1.1.0"
-    status: pending
+    status: completed
 isProject: false
 ---
 
@@ -296,3 +296,12 @@ The plan held. Release `v1.1.0` is published, the bot's clock stands still, and 
 - **The tests of the fork run on a developer machine alone.**
 - **A few sums of the bot follow the system's math library.** No reply has been seen to differ.
 - **A download through a browser on a Mac,** and the words of the error messages against the live OpenAI API, are untested, as the plan says.
+
+## After the record: the listing in the Marketplace
+
+- **The owner published release 1.1.0 to the GitHub Marketplace** on the evening of the build, with the clicks of Part 3. The listing is at [github.com/marketplace/actions/cheapseek](https://github.com/marketplace/actions/cheapseek).
+- **The first try failed and the second worked.** The page said "We weren't able to create the release for you. Please correct the errors below." The owner tried again, and the release was updated.
+- **The listing shows `v1.1.0`** under the categories Testing and Continuous integration, with `cppalliance/cheapseek@v1` as the line to use.
+- **GitHub took the name `CheapSeek`,** and it took a repository that holds the server beside the action.
+- **The release came through unchanged:** the same five files and the same notes, with `v1` and `v1.1.0` on `54d18eb`. The repository holds two releases, `v1.0.0` and `v1.1.0`.
+- **CI run 45101068690 on push 7 was green.**

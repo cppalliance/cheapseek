@@ -4,55 +4,55 @@ overview: "Fix every open issue in CheapSeek: build RustBot from the cppalliance
 todos:
   - id: fork-clock
     content: "Fork commit A in cppalliance/rustbot: Bot::set_now, Reading::now, the 14 calls, the --now flag, tests, notice lines and README section; run the fork's whole test suite"
-    status: in_progress
+    status: completed
   - id: fork-zones
     content: "Fork commit B: jiff tzdb-bundle-always and the three lookups through TimeZoneDatabase::bundled(); run the fork's suite; push the fork's main"
-    status: pending
+    status: completed
   - id: plan-copy
     content: "Commit 0: plan copy with links that work on GitHub, the changed copy rule in AGENTS.md, the seven links in the second plan copy; test that no c:\\Users path remains"
-    status: pending
+    status: completed
   - id: fork-url
     content: "Commit 1: Cargo.toml, Cargo.lock and deny.toml name cppalliance/rustbot at the same commit, README and AGENTS name the fork; recorded replies unchanged; push 1 and watch CI"
-    status: pending
+    status: completed
   - id: fixed-clock
     content: "Commit 2: pin the fork's new head, set each bot to the created time, unit and HTTP tests with recorded dated replies, the TZ and TZDIR test, a third action/check request, weekly CI run, README and AGENTS; push 2 and watch CI on three systems as the gate"
-    status: pending
+    status: completed
   - id: panic-replay
     content: "Commit 3: make the bot turn a parameter of the replay body and test a panicking turn through the whole replay"
-    status: pending
+    status: completed
   - id: coverage-job
     content: "Commit 4: llvm-tools in rust-toolchain.toml, a coverage job in ci.yml with a floor at the measured number, ci-green needs it"
-    status: pending
+    status: completed
   - id: coverage-gaps
     content: "Commit 5: tests for each uncovered line a request can reach, raise the floor, list what stays uncovered; push 3 and watch CI"
-    status: pending
+    status: completed
   - id: static-crt
     content: "Commit 6: +crt-static for the MSVC target in .cargo/config.toml and a Windows test that the executable names no vcruntime140.dll"
-    status: pending
+    status: completed
   - id: strip
     content: "Commit 7: strip = true in the release profile and a .symtab check in release.yml; push 4, watch CI, run the Release workflow by hand and read the sizes"
-    status: pending
+    status: completed
   - id: clean-release-build
     content: "Commit 8: remove the cache step from release.yml"
-    status: pending
+    status: completed
   - id: pin-actions
     content: "Commit 9: pin checkout, upload-artifact and download-artifact by full commit hash in ci.yml and release.yml"
-    status: pending
+    status: completed
   - id: license-file
     content: "Commit 10: about.toml and about.hbs, a licenses job and the file in publish in release.yml, the generator in the supply-chain job, README and AGENTS; push 5, watch CI, run the Release workflow by hand"
-    status: pending
+    status: completed
   - id: docs
     content: "Commit 11: the one-commit wording in AGENTS.md and start.sh, curl commands and the Mac note in the README, the error message statement, the notices"
-    status: pending
+    status: completed
   - id: listing-metadata
     content: "Commit 12: branding (icon package, color orange) in action.yml, and the Marketplace rule in the Releases section of AGENTS.md"
-    status: pending
+    status: completed
   - id: release-1-1
     content: "Commit 13: version 1.1.0; push 6, CI green, push the tag v1.1.0, watch the Release run to its end, verify the five files and the v1 tag, then set the repo description"
-    status: pending
+    status: completed
   - id: record
     content: "Commit 14: What the build found and the todo statuses in the plan copy; push 7 and watch CI"
-    status: pending
+    status: completed
   - id: marketplace
     content: "Final step: give the owner the link to the v1.1.0 release and the four clicks that publish it to the GitHub Marketplace, wait for the owner's word, then verify that the listing page answers and shows v1.1.0"
     status: pending
@@ -181,3 +181,118 @@ GitHub publishes an action only from the web page of a release, by a signed-in p
 - **The first tag run with the new jobs fails.** Fix it on `master` and release `v1.1.1`.
 - **Someone takes the name `CheapSeek` on GitHub or on the Marketplace before your click.** The release page then refuses the name. The `name` in `action.yml` becomes "CheapSeek test server", and that ships as `v1.1.1`.
 - **GitHub advises a repository that holds the action alone.** This one also holds the server the action starts. The three rules GitHub enforces are met, so I expect the page to accept it, and your click is the test.
+
+# What the build found
+
+The plan held. Release `v1.1.0` is published, the bot's clock stands still, and every run was green on Linux, macOS and Windows. Each step passed on its first run in CI, and the gate after push 2 passed. This record was written after the Release run of the tag ended and before push 7. The points below differ from the plan above, or add to it.
+
+## The result
+
+- **Release [v1.1.0](https://github.com/cppalliance/cheapseek/releases/tag/v1.1.0)** holds five files: three executables, `SHA256SUMS` and `THIRD-PARTY-LICENSES.html`. The tags `v1.1.0` and `v1` both name commit `54d18eb`, and `v1.0.0` still names `20f7a2b`.
+- **The Release run of the tag, 45100041981, was green in 6.2 minutes.** Each `proof` job downloaded `cppalliance/cheapseek@v1` at `54d18eb` and got the three recorded replies.
+- **The fork [cppalliance/rustbot](https://github.com/cppalliance/rustbot) holds two commits** on top of `fb89123`: `6e51ec6` and `866aac5`. CheapSeek pins `866aac5`.
+- **Commits here: sixteen where the plan lists fifteen.** The extra one raises the coverage floor after CI gave its number. `master` was pushed seven times, the fork once, and one tag was pushed.
+- **Tests:** 125 unit tests, 85 tests over HTTP and 1 doc test on each of the three systems. Before this plan the counts were 113, 77 and 1.
+- **Line coverage:** 99.18 percent on Ubuntu, where 12 of 1,468 lines stay without a test. The floor is 99.
+- **Sizes of the executables:** 66.3 MB for Linux, where release 1.0.0 had 91.4. 41.2 MB for macOS, where it had 58.4. 46.2 MB for Windows, as before.
+- **The description of the repository on GitHub** now reads "An OpenAI-compatible test server: rule-based chat from RustBot, plus tool calls, streaming and structured output, with zero inference".
+
+## The fork
+
+- **The time of a turn is held for the thread of the turn, and `Reading::now` reads it.** The plan put the time on the turn's `Reading`. A turn builds more readings than that one: for earlier lines, and for reworded forms of the line, in many places of the bot. A field on one reading would have left the others on the system clock. `src/bot/clock.rs` holds the time in a thread-local value while `turn` runs, and puts the earlier value back when the turn ends, also in a panic.
+- **`Bot::set_now` reads its time with the bundled time zone database too,** so a time with a named zone means the same on every host.
+- **The fork's own suite passed for both commits.** The whole suite ran once for each: 817 tests for the first commit, before one more test was added to it, and 821 for the second. The original has 803. The second run took 336 seconds.
+- **The fork has 18 new tests.** They set two times and compare the replies for the full moon, an age, the month, a time difference, a school holiday, a due date and a length of time. The savings and budget replies are left without a test at a set time.
+- **The test with `TZDIR` and `TZ` passes on Windows, where the original already takes its zones from inside the executable.** The fork's tests run on a developer machine alone, so Linux and macOS test the same thing through CheapSeek's own test.
+- **The messages of the fork's commits end without a `Plan:` line,** because the plan copy is in this repository.
+
+## Commit 0, `c4886dd`: the plan copy
+
+- **The copy differs from the approved plan in seven lines:** nine paths became eight relative links and one folder name. The second plan copy changed in seven links.
+- **The search that tests the commit looked for a path under `c:\Users`.** The plan copy itself holds the text `c:\Users` twice, where it names that search.
+- **The copy is one status ahead of the approved plan:** `fork-clock` was `in_progress`.
+
+## Commit 1, `42172bc`: the fork as the source
+
+- **CI run 45091374902 was green.** The test jobs built the bot again from the new address and took 3.5 to 4.5 minutes.
+
+## Commit 2, `941fcc4`: the fixed clock
+
+- **The gate passed.** In CI run 45093825807 the dated replies were the same bytes on the three systems. The runners' clocks read 23 November, a day after the fixed time, and the full moon reply still said "in 2 days".
+- **Six dated replies are recorded** in `tests/it/dates.rs`, and four of them in the unit tests. All six were read before they were saved, and each fits 22 November 2026, midnight UTC: the full moon two days on, November in the garden, an age of 36 for a birth in 1990, New York five hours behind at 7pm, the summer holiday on Wednesday 21 July 2027, and two and a half years since March 2024.
+- **`Brain::at` takes the time,** so a unit test shows the replies of another day. The server uses the one constant.
+- **A unit test works out the seconds of the constant from its text** and compares them with `created`.
+- **The recorded replies of `chat` and `echo` in `action/check/` kept their bytes,** so the two changes of the fork touched no other reply that the tests hold.
+- **On the day of the build the host clock and the fixed time gave the same date here,** so the run on this machine could not tell them apart. The run of release 1.0.0 with a time difference showed the host's minutes, and CI ran a day later.
+
+## Commit 3, `9c0fedc`: a bot that panics
+
+- **Three tests run a turn that panics through the whole replay:** on a new bot, on a kept bot, and beside requests of other conversations on other threads. The fallback line is never kept as the reply of a conversation.
+- **A panic inside the code of the bot itself is still without a test.**
+
+## Commits 4 and 5, `84f6621` and `cbbb088`, and the extra commit `789e1ac`: coverage
+
+- **The first count, on this Windows machine, was 95.44 percent of 1,468 lines,** so the floor started at 95.
+- **The count found one behavior that the README did not list:** a body over 64 MiB gets a 413. The README lists it now, and two tests send a body of the largest size and one byte more.
+- **The other lines with a new test:** a request without a user message, a message with the role `function`, a `$ref` that leads nowhere, an object that requires more properties than a run may make, `warm_up`, and the 500 of a reply that the server cannot write. The last one is a unit test, because no request reaches it.
+- **A test sends `SIGINT` to the executable on Linux and macOS,** and the executable ends with success. That covers the lines of `main` after the port is bound. The test runs on those two systems alone, because only they have a command that sends the signal to one process.
+- **CI run 45095738987 counted 99.18 percent on Ubuntu.** The floor in `cbbb088` was 98, from the 98.23 percent of the Windows machine, where the `SIGINT` test does not run. `789e1ac` raises it to 99, the number of the job that holds it.
+- **The lines that stay without a test:** a check in `src/brain.rs` that the compiler runs, a branch there that its loop rules out, an arm in `src/directive.rs` that no input reaches, and the lines of `src/main.rs` that run when the handler for Ctrl-C cannot be installed.
+- **The standard library for the Linux target was added to the toolchain of this machine,** so that clippy could check the test code that Windows does not compile.
+
+## Commit 6, `7a52565`: the C runtime inside the Windows executable
+
+- **The target table repeats `-D warnings`.** Cargo takes the flags of a matching target table in place of the `[build]` flags, so the setting could not sit beside them as the plan said.
+- **The built executable names six libraries, all parts of Windows.** Before the change it also named `vcruntime140.dll` and six parts of the Universal C Runtime.
+- **A build by `cargo install` does not read `.cargo/config.toml`** and links the runtime as before.
+
+## Commit 7, `43ccc0c`: stripped executables
+
+- **The manual Release run 45097596262 gave the sizes:** 66.3 MB for Linux and 41.2 MB for macOS. The Windows executable keeps its size, because its symbols were never inside it.
+- **The tools applied one batch of edits twice,** which doubled the profile in `Cargo.toml` and the new step in `release.yml`. The build failed on the doubled profile before the commit, and both files were corrected.
+
+## Commits 8 and 9, `31bf9dc` and `113d3a3`: clean builds and pinned actions
+
+- **A release build from an empty cache takes 160 to 231 seconds** on the three systems, in the manual run 45099088061 and in the run of the tag.
+- **Commit 9 changed eleven places:** nine checkouts, one upload and one download. The jobs of commit 10 name their actions by commit from the start.
+
+## Commit 10, `1aa17ce`: the page of licenses
+
+- **The page lists 102 crates under five licenses** and is 230,443 bytes. The page that the manual run made on Ubuntu and the page made on this Windows machine hold the same text.
+- **`cargo-about` 0.9.2 reads the license of each crate from its source alone.** It asks a web service for nothing, and it found a text for every crate. `mt19937` names a license file in place of a license field, and the page holds the text of that file.
+- **`SHA256SUMS` lists the page too.**
+- **`cargo-about` 0.9.2 was downloaded into a scratch folder** for the test on this machine, and its sum matched the published one.
+
+## Commits 11 to 13, `693d705`, `e1cb320` and `54d18eb`
+
+- **The fourth correction of commit 11 was already in commit 10:** the README says there that each release holds the page of licenses.
+- **The download addresses in the README were tried against release 1.0.0** and each answered.
+- **The name `CheapSeek` was still free** on GitHub and in the Marketplace when the branding was committed.
+- **CI run 45099787164 on `54d18eb` was green** before the tag was pushed.
+
+## The tag `v1.1.0`
+
+- **All five files were downloaded to this machine,** and each of the four that `SHA256SUMS` lists matches its sum. The action then ran here with the real download and got the three recorded replies.
+- **The Windows executable of the release names libraries of Windows alone,** and it answers the dated questions as recorded.
+- **`v1` moved through the GitHub API for the first time,** from `20f7a2b` to `54d18eb`.
+- **One start of the action took 34 seconds,** in the `proof` job on Windows. The five other starts in that run took 3 to 6 seconds, and the script waits up to 120.
+
+## The risks, looked at again
+
+- **The dated replies** are the same bytes on the three systems.
+- **`+crt-static`** built on the first try.
+- **Coverage of `main.rs`** is 97 percent on Ubuntu, because the `SIGINT` test lets the executable end by itself.
+- **`cargo-about`** found a license text for every crate.
+- **The first tag run with the new jobs** passed.
+- **The name and the shape of the repository** are still to be tested by the owner's click.
+
+## Still open when this record was written
+
+- **The listing in the Marketplace.** It is four clicks of the owner on the page of release 1.1.0, and Part 3 above lists them.
+- **Push 7 and its CI run.** They come after this commit, so the chat reports them.
+- **The notes of release 1.1.0 are the ones GitHub generates.** A reader learns from the README alone that replies with a date in them changed.
+- **The first weekly run of CI** comes on the Monday after the release.
+- **The issue on RustBot is open and waits for an answer.** A pull request with the two commits of the fork is the owner's to decide.
+- **The tests of the fork run on a developer machine alone.**
+- **A few sums of the bot follow the system's math library.** No reply has been seen to differ.
+- **A download through a browser on a Mac,** and the words of the error messages against the live OpenAI API, are untested, as the plan says.

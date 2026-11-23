@@ -114,6 +114,17 @@ fn a_schema_that_refers_to_itself_ends_at_the_depth_limit() {
 }
 
 #[test]
+fn a_ref_that_leads_nowhere_gives_a_string() {
+    // The name is absent from `$defs`, and the second pointer leaves the
+    // document, which the generator never does.
+    for pointer in ["#/$defs/Missing", "https://example.com/schemas/person.json"] {
+        let schema = json!({ "$ref": pointer, "$defs": { "Named": { "type": "integer" } } });
+        assert_eq!(generate(&schema, 0), "a", "{pointer}");
+        assert_eq!(generate(&schema, 1), "b", "{pointer}");
+    }
+}
+
+#[test]
 fn any_of_and_one_of_give_the_branch_the_seed_picks() {
     let optional = json!({ "anyOf": [{ "type": "string" }, { "type": "null" }] });
     assert_eq!(valid_at(&optional, 0), "a");
@@ -373,6 +384,19 @@ fn a_schema_that_asks_for_a_huge_value_gets_a_bounded_one() {
         "items": { "type": "array", "minItems": 64, "items": { "type": "integer" } }
     });
     assert!(size(&generate(&wide, 0)) <= MAX_VALUES);
+
+    // An object that requires more properties than a run may make values
+    // gets the first of them, in the order of the `required` list.
+    let names: Vec<String> = (0..MAX_VALUES + 100)
+        .map(|index| format!("p{index:04}"))
+        .collect();
+    let many = json!({ "type": "object", "required": names });
+    let object = generate(&many, 0);
+    let fields = object.as_object().expect("an object");
+    assert_eq!(size(&object), MAX_VALUES);
+    assert!(fields.contains_key("p0000") && fields.contains_key("p0998"));
+    assert!(!fields.contains_key("p0999"));
+
     assert_eq!(
         generate(&json!({ "type": "string", "minLength": 1_000_000 }), 0)
             .as_str()

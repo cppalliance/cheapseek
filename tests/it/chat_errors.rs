@@ -3,7 +3,20 @@
 
 use serde_json::{Value, json};
 
-use crate::support::Server;
+use crate::support::{Server, content};
+
+/// The largest request body the server reads, in bytes.
+const LARGEST_BODY: usize = 64 * 1024 * 1024;
+
+/// A valid request to the echo model, with spaces after it up to `length`
+/// bytes.
+fn request_of(length: usize) -> String {
+    let request = r#"{"model":"cheapseek-echo","messages":[{"role":"user","content":"hi"}]}"#;
+    let mut body = String::with_capacity(length);
+    body.push_str(request);
+    body.extend(std::iter::repeat_n(' ', length - request.len()));
+    body
+}
 
 /// Checks that `body` is the error envelope and returns its four fields.
 fn envelope(body: &Value) -> (&str, &Value, &Value) {
@@ -133,6 +146,28 @@ async fn a_token_limit_of_zero_gets_a_400() {
         (param, code),
         (&json!("max_tokens"), &json!("integer_below_min_value"))
     );
+}
+
+#[tokio::test]
+async fn a_body_of_the_largest_size_is_read() {
+    let server = Server::start().await;
+    let (status, bytes) = server.chat_bytes(&request_of(LARGEST_BODY)).await;
+    assert_eq!(status, 200);
+    assert_eq!(content(&bytes), "user: hi");
+}
+
+#[tokio::test]
+async fn a_body_one_byte_over_the_largest_size_gets_a_413_in_the_envelope() {
+    let server = Server::start().await;
+    let (status, bytes) = server.chat_bytes(&request_of(LARGEST_BODY + 1)).await;
+    assert_eq!(status, 413);
+    let body: Value = serde_json::from_slice(&bytes).expect("a JSON error body");
+    let (message, param, code) = envelope(&body);
+    assert!(
+        message.starts_with("The request body could not be read: "),
+        "{message}"
+    );
+    assert_eq!((param, code), (&Value::Null, &Value::Null));
 }
 
 #[tokio::test]

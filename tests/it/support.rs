@@ -127,6 +127,32 @@ impl Executable {
         Executable { line, child, lines }
     }
 
+    /// Sends the process the signal that Ctrl-C sends, waits for it to end,
+    /// and returns its exit status and what it printed after its first line.
+    #[cfg(unix)]
+    pub(crate) async fn interrupt(mut self) -> (std::process::ExitStatus, Vec<String>) {
+        let id = self
+            .child
+            .id()
+            .expect("a process that still runs")
+            .to_string();
+        let sent = Command::new("kill")
+            .args(["-INT", id.as_str()])
+            .status()
+            .await
+            .expect("the kill command runs");
+        assert!(sent.success(), "kill -INT {id}: {sent}");
+        let status = timeout(START_LIMIT, self.child.wait())
+            .await
+            .expect("the executable ends within the time limit")
+            .expect("the exit status of the executable");
+        let mut rest = Vec::new();
+        while let Some(line) = self.lines.next_line().await.expect("a readable line") {
+            rest.push(line);
+        }
+        (status, rest)
+    }
+
     /// Kills the process and returns what it printed after its first line.
     pub(crate) async fn stop(mut self) -> Vec<String> {
         self.child.kill().await.expect("the server stops");

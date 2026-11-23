@@ -268,6 +268,7 @@ A request the server refuses gets a status in the 400s and OpenAI's error envelo
 | A model name the server lacks | 404 |
 | A path outside the API | 404 |
 | The wrong method on a path of the API | 405 |
+| A body larger than 64 MiB | 413 |
 
 Every other field of the OpenAI API, such as `temperature`, is accepted and ignored.
 
@@ -326,7 +327,7 @@ cargo deny check
 
 The tests talk to a real server over HTTP. Two crates this project does not write act as judges: `async-openai`, a typed OpenAI client, reads every kind of reply, and `jsonschema` validates every value made from a schema.
 
-CI runs these checks on every push, with the tests on Linux, macOS and Windows. On each of the three it also starts a server through the action and compares its replies with recorded ones, byte for byte. A coverage job counts the lines the tests run with `cargo llvm-cov`, and fails below a floor of 95 percent. The release workflow holds each executable to the same recorded replies before it publishes, and then starts the published files through the action.
+CI runs these checks on every push, with the tests on Linux, macOS and Windows. On each of the three it also starts a server through the action and compares its replies with recorded ones, byte for byte. A coverage job counts the lines the tests run with `cargo llvm-cov`, and fails below a floor of 98 percent. The release workflow holds each executable to the same recorded replies before it publishes, and then starts the published files through the action.
 
 ## Design
 

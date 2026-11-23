@@ -25,6 +25,31 @@ async fn the_built_executable_prints_one_url_line_and_answers_on_it() {
     assert_eq!(rest, Vec::<String>::new(), "the base URL is the only line");
 }
 
+/// Ctrl-C reaches a process on Linux and macOS as the signal `SIGINT`,
+/// which the `kill` command can send. Windows has no command that sends
+/// Ctrl-C to one process, so this test runs on the other two.
+#[cfg(unix)]
+#[tokio::test]
+async fn ctrl_c_ends_the_executable_with_success_and_no_more_output() {
+    let executable = Executable::start(&[]).await;
+    let (status, _) = get_url(&format!("{}/models", executable.line)).await;
+    assert_eq!(status, 200);
+
+    let (status, rest) = executable.interrupt().await;
+    assert!(status.success(), "{status}");
+    assert_eq!(rest, Vec::<String>::new());
+}
+
+#[tokio::test]
+async fn the_warm_up_changes_no_reply() {
+    let body = r#"{"model":"cheapseek","messages":[{"role":"user","content":"Hi, I'm Sam."}]}"#;
+    let before = Server::start().await.chat_bytes(body).await;
+    cheapseek::warm_up().await;
+    let after = Server::start().await.chat_bytes(body).await;
+    assert_eq!(before.0, 200);
+    assert_eq!(before, after);
+}
+
 #[tokio::test]
 async fn a_port_that_is_taken_ends_the_executable_with_an_error_and_no_url() {
     // The test holds the port for the whole run, so the executable can only

@@ -162,3 +162,7 @@ async fn unknown_path(method: Method, uri: Uri) -> ApiError {
 async fn wrong_method(method: Method, uri: Uri) -> ApiError {
     ApiError::method_not_allowed(&method, &uri)
 }
+
+#[cfg(test)]
+#[path = "api-tests.rs"]
+mod tests;

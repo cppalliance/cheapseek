@@ -64,6 +64,25 @@ async fn the_echo_shows_every_role_and_a_part_that_is_not_text_by_its_type() {
 }
 
 #[tokio::test]
+async fn the_echo_shows_the_result_of_a_function_call_in_the_older_form() {
+    let server = Server::start().await;
+    let (status, body) = server
+        .chat(&json!({
+            "model": "cheapseek-echo",
+            "messages": [
+                { "role": "user", "content": "Weather in Oslo?" },
+                { "role": "function", "name": "get_weather", "content": "4 C and rain" }
+            ]
+        }))
+        .await;
+    assert_eq!(status, 200);
+    assert_eq!(
+        body["choices"][0]["message"]["content"],
+        "user: Weather in Oslo?\nfunction get_weather: 4 C and rain"
+    );
+}
+
+#[tokio::test]
 async fn the_token_limit_cuts_the_echo_too() {
     let server = Server::start().await;
     let (_, body) = server

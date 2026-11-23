@@ -158,6 +158,23 @@ async fn the_reply_depends_on_the_earlier_user_turns_of_the_request() {
 }
 
 #[tokio::test]
+async fn a_request_without_a_user_message_gets_the_line_of_a_bot_that_heard_nothing() {
+    let server = Server::start().await;
+    let (status, body) = server
+        .chat(&json!({
+            "model": "cheapseek",
+            "messages": [
+                { "role": "system", "content": "Be brief. [[say This block is in no user message.]]" },
+                { "role": "assistant", "content": "Ready." }
+            ]
+        }))
+        .await;
+    assert_eq!(status, 200);
+    assert_eq!(body["choices"][0]["message"]["content"], "Hello!");
+    assert_eq!(body["choices"][0]["finish_reason"], "stop");
+}
+
+#[tokio::test]
 async fn fields_the_server_has_no_use_for_are_accepted() {
     let server = Server::start().await;
     let (status, body) = server

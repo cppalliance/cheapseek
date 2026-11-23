@@ -132,7 +132,7 @@ jobs:
     env:
       # The measured share of lines, rounded down to a whole percent. Raise
       # it when the tests reach more lines.
-      FLOOR: 95
+      FLOOR: 98
     steps:
       - uses: actions/checkout@v7
 

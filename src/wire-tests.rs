@@ -26,6 +26,16 @@ fn the_error_envelope_writes_an_absent_param_and_code_as_null() {
 }
 
 #[test]
+fn the_envelope_of_a_failure_inside_the_server_has_its_own_type() {
+    let body = ErrorBody::server_error("broken".to_owned());
+    let json = serde_json::to_string(&body).expect("the envelope is plain JSON");
+    assert_eq!(
+        json,
+        r#"{"error":{"message":"broken","type":"server_error","param":null,"code":null}}"#
+    );
+}
+
+#[test]
 fn a_request_with_fields_the_server_ignores_is_read() {
     let request = ChatRequest::parse(
         br#"{"model":"cheapseek","messages":[{"role":"user","content":"hi","name":"sam"}],

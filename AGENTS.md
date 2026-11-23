@@ -67,7 +67,7 @@ CheapSeek is a test server that speaks the OpenAI chat-completions API and answe
 
 ## Releases
 
-- **The version lives in `Cargo.toml` alone.** `action/start.sh` reads it there to find the release it downloads, so the action and the executable always come from one commit.
+- **The version lives in `Cargo.toml` alone.** `action/start.sh` reads it there to find the release it downloads. At a release tag, the action and the executable come from one commit. At a later commit of `master`, the action starts the executable of the last release, and the commit that sets a new version has no release to download until its tag is pushed. So CI and the builds of `release.yml` start the action with the `executable` input.
 - **A release is the tag `vX.Y.Z` on a commit of `master` with green CI,** pushed when the owner has said to release. The tag names the version in `Cargo.toml`, and `release.yml` fails a tag that names another. The commit that sets the version also updates `Cargo.lock`.
 - **A version tag is never moved and never used again.** A release that went wrong gets a fix on `master` and the next version.
 - **`release.yml` alone moves the major tag `v1`,** after the published files have worked through the action on three systems. Never push `v1` by hand.

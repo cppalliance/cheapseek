@@ -18,14 +18,30 @@ CheapSeek is a test server that speaks the OpenAI chat-completions API and answe
 
 Get the executable in one of three ways:
 
-- **Download it.** Each [release](https://github.com/cppalliance/cheapseek/releases) holds one file for Linux on x64, one for macOS on arm64 and one for Windows on x64, with their SHA-256 sums and a page of third-party licenses. The Linux file needs glibc 2.35 or newer, which Ubuntu 22.04 has. The Windows file holds its C runtime, so it starts on a machine without the Visual C++ runtime. On Linux and macOS, make the file executable with `chmod +x`.
+- **Download it.** Each [release](https://github.com/cppalliance/cheapseek/releases) holds one file for Linux on x64, one for macOS on arm64 and one for Windows on x64, with their SHA-256 sums and a page of third-party licenses. The commands below fetch the newest release.
 - **Install it with cargo.** `cargo install --git https://github.com/cppalliance/cheapseek --locked` builds the executable in about three minutes and puts `cheapseek` among cargo's own executables. It needs Rust 1.99 or newer.
 - **Build it in a checkout.** `cargo build --release` leaves it at `target/release/cheapseek`.
+
+```sh
+# Linux on x64. The file needs glibc 2.35 or newer, which Ubuntu 22.04 has.
+curl -L -o cheapseek https://github.com/cppalliance/cheapseek/releases/latest/download/cheapseek-x86_64-unknown-linux-gnu
+chmod +x cheapseek
+
+# macOS on arm64.
+curl -L -o cheapseek https://github.com/cppalliance/cheapseek/releases/latest/download/cheapseek-aarch64-apple-darwin
+chmod +x cheapseek
+
+# Windows on x64, in PowerShell. The file holds its C runtime, so it starts
+# on a machine without the Visual C++ runtime.
+curl.exe -L -o cheapseek.exe https://github.com/cppalliance/cheapseek/releases/latest/download/cheapseek-x86_64-pc-windows-msvc.exe
+```
+
+`curl` is how the action fetches the file, and how every release is tested. A browser on macOS marks each file it downloads, and macOS then refuses to start the file. For an executable that came through a browser, remove the mark first with `xattr -d com.apple.quarantine cheapseek`.
 
 Then start it:
 
 ```sh
-cheapseek
+./cheapseek
 ```
 
 The server binds a free port on `127.0.0.1`, warms the bot, prints one line, and serves until Ctrl-C:
@@ -269,6 +285,8 @@ A request the server refuses gets a status in the 400s and OpenAI's error envelo
 | A path outside the API | 404 |
 | The wrong method on a path of the API | 405 |
 | A body larger than 64 MiB | 413 |
+
+The envelope, the status, the `type` and the `code` follow OpenAI's API. The words of the `message` are CheapSeek's own. They were written to read like OpenAI's and were never compared with the live API, so a test matches on the status and the `code`. One `code` belongs to CheapSeek alone: `invalid_directive`.
 
 Every other field of the OpenAI API, such as `temperature`, is accepted and ignored.
 

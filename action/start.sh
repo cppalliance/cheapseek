@@ -54,8 +54,11 @@ if [ -z "$executable" ]; then
       ;;
   esac
 
-  # The action and the executable come from one commit: the version in the
-  # `Cargo.toml` beside `action.yml` names the release to download.
+  # The version in the `Cargo.toml` beside `action.yml` names the release to
+  # download. At a release tag, the action and the executable come from one
+  # commit. At a later commit of `master`, the action starts the executable
+  # of the last release. The commit that sets a new version has no release
+  # to download until its tag is pushed.
   version=$(awk -F '"' '/^version = "/ { print $2; exit }' "$root/Cargo.toml")
   [ -n "$version" ] || fail "found no version in $root/Cargo.toml"
   release=https://github.com/$repository/releases/download/v$version
